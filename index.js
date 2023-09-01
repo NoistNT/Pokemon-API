@@ -23,7 +23,7 @@ const { conn } = require('./src/db.js')
 const { PORT } = process.env
 
 // Syncing all the models at once.
-conn.sync({ force: true }).then(() => {
+conn.sync({ force: false }).then(() => {
   server.listen(PORT, () => {
     console.log(`Express server running on port ${PORT}`)
   })
