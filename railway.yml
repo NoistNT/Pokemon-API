@@ -1,0 +1,6 @@
+version: 2
+services:
+  - name: node-api
+    type: node
+    buildCommand: pnpm install
+    startCommand: pnpm start
