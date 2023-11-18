@@ -1,7 +1,7 @@
 {
   "name": "api",
   "version": "1.0.0",
-  "description": "",
+  "description": "PokeApi",
   "main": "index.js",
   "scripts": {
     "start": "nodemon -L",
