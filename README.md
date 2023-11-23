@@ -5,7 +5,7 @@
 
 <div align="center">
   <a href="https://pokewikiclient.vercel.app">
-    <img src="https://github.com/NoistNT/Pokemon-API/assets/104594670/433140b8-8bba-4140-981a-dbd77f6d6996" alt="PokeWiki Logo" width="500" height="200">
+    <img src="src/assets/logo.webp" alt="PokeWiki Logo" width="500" height="200">
   </a>
 
 
