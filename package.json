@@ -23,11 +23,11 @@
     "sequelize": "^6.35.0"
   },
   "devDependencies": {
-    "supertest-session": "^5.0.1",
-    "mocha": "^10.2.0",
     "chai": "^4.3.10",
-    "nodemon": "^3.0.1",
-    "supertest": "^6.3.3"
+    "mocha": "^10.2.0",
+    "nodemon": "^3.0.2",
+    "supertest": "^6.3.3",
+    "supertest-session": "^5.0.1"
   },
   "engines": {
     "node": "20.9.0"
