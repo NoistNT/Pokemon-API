@@ -1,5 +1,7 @@
-require('dotenv').config()
+import * as dotenv from 'dotenv'
+dotenv.config()
 const { Sequelize } = require('sequelize')
+
 const fs = require('fs')
 const path = require('path')
 const { DB_DIALECT, DB_USER, DB_PASSWORD, DB_HOST, DB_NAME } = process.env
@@ -13,15 +15,15 @@ const sequelize = new Sequelize(
 )
 const basename = path.basename(__filename)
 
-const modelDefiners = []
+const modelDefiners: any[] = []
 
 // Scan models files. Require them and add them to modelDefiners array
 fs.readdirSync(path.join(__dirname, '/models'))
   .filter(
-    (file) =>
-      file.indexOf('.') !== 0 && file !== basename && file.slice(-3) === '.js'
+    (file: string) =>
+      file.indexOf('.') !== 0 && file !== basename && file.slice(-3) === '.ts'
   )
-  .forEach((file) => {
+  .forEach((file: any) => {
     modelDefiners.push(require(path.join(__dirname, '/models', file)))
   })
 

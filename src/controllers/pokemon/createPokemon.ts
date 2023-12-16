@@ -1,7 +1,9 @@
-const { Pokemon, Type } = require('../../db')
-const axios = require('axios')
+import axios from 'axios'
+import { IPokemon } from '../../types'
 
-const createPokemon = async (pokemon) => {
+const { Pokemon, Type } = require('../../db')
+
+const createPokemon = async (pokemon: IPokemon) => {
   try {
     const URL = process.env.URL
 
@@ -12,7 +14,7 @@ const createPokemon = async (pokemon) => {
     const { data } = await axios.get(`${URL}/pokemon?limit=1281`)
 
     const pokemonExistsInApi = data.results.find(
-      (poke) => poke.name === pokemon.name
+      (poke: { name: string }) => poke.name === pokemon.name
     )
 
     if (pokemonExistsInDb || pokemonExistsInApi) {

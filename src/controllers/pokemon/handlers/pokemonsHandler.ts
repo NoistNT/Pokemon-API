@@ -1,4 +1,8 @@
-const axios = require('axios')
+import { IPokemonAPI, IPokemon } from '../../../types'
+import axios from 'axios'
+import * as dotenv from 'dotenv'
+dotenv.config()
+
 const { URL } = process.env
 const { Pokemon, Type } = require('../../../db')
 const {
@@ -11,12 +15,16 @@ const getPokemonsFromAPI = async () => {
     const { data } = await axios.get(`${URL}/pokemon?limit=40.`)
 
     const pokemons = await Promise.all(
-      data.results.map((pokemon) => getPokemonDetailsFromAPI(pokemon.url))
+      data.results.map((pokemon: IPokemonAPI) =>
+        getPokemonDetailsFromAPI(pokemon.url)
+      )
     )
 
     return pokemons
   } catch (error) {
-    throw new Error(`Failed to fetch pokemons from API. ${error.message}`)
+    if (error instanceof Error) {
+      throw new Error(`Failed to fetch pokemons from API. ${error.message}`)
+    }
   }
 }
 
@@ -31,13 +39,15 @@ const getPokemonsFromDB = async () => {
 
     if (dbPokemons) {
       const pokemons = await Promise.all(
-        dbPokemons.map((pokemon) => getPokemonDetailsFromDB(pokemon))
+        dbPokemons.map((pokemon: IPokemon) => getPokemonDetailsFromDB(pokemon))
       )
 
       return pokemons
     }
   } catch (error) {
-    throw new Error(`Failed to fetch pokemons from db. ${error.message}`)
+    if (error instanceof Error) {
+      throw new Error(`Failed to fetch pokemons from db. ${error.message}`)
+    }
   }
 }
 
@@ -45,15 +55,17 @@ const getPokemonsData = async () => {
   try {
     const apiData = await getPokemonsFromAPI()
     const dbData = await getPokemonsFromDB()
-    const pokemons = apiData.concat(dbData)
+    const pokemons = apiData?.concat(dbData)
 
     return pokemons
   } catch (error) {
-    throw new Error(`Failed to fetch pokemons data. ${error.message}`)
+    if (error instanceof Error) {
+      throw new Error(`Failed to fetch pokemons data. ${error.message}`)
+    }
   }
 }
 
-const getPokemonByName = async (name) => {
+const getPokemonByName = async (name: string) => {
   try {
     const dbPokemon = await Pokemon.findOne({
       where: { name: name.toLowerCase() },
@@ -75,11 +87,13 @@ const getPokemonByName = async (name) => {
 
     return pokemon
   } catch (error) {
-    throw new Error(`Pokemon not found. ${error.message}`)
+    if (error instanceof Error) {
+      throw new Error(`Pokemon not found. ${error.message}`)
+    }
   }
 }
 
-const getPokemonByID = async (id) => {
+const getPokemonByID = async (id: number) => {
   try {
     if (isNaN(id)) {
       const dbPokemon = await Pokemon.findByPk(id, {
@@ -100,7 +114,9 @@ const getPokemonByID = async (id) => {
 
     return pokemon
   } catch (error) {
-    throw new Error(`Pokemon with id ${id} not found. ${error.message}`)
+    if (error instanceof Error) {
+      throw new Error(`Pokemon with id ${id} not found. ${error.message}`)
+    }
   }
 }
 
