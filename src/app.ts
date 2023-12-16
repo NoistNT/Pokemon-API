@@ -1,13 +1,15 @@
-const express = require('express')
+import express, { Express } from 'express'
+
 const cors = require('cors')
 const cookieParser = require('cookie-parser')
 const bodyParser = require('body-parser')
 const morgan = require('morgan')
-const mainRouter = require('./routes/mainRouter.js')
 
-require('./db.js')
+const mainRouter = require('./routes/mainRouter.ts')
 
-const app = express()
+require('./db.ts')
+
+const app: Express = express()
 
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }))
 app.use(bodyParser.json({ limit: '50mb' }))
