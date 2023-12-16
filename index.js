@@ -17,11 +17,9 @@
 //     =====`-.____`.___ \_____/___.-`___.-'=====
 //                       `=---='
 //     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-const server = require('./src/app.ts')
-const { conn } = require('./src/db.ts')
-import * as dotenv from 'dotenv'
-dotenv.config()
+require('dotenv').config()
+const server = require('./src/app.js')
+const { conn } = require('./src/db.js')
 const { PORT } = process.env
 
 // Syncing all the models at once.

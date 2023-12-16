@@ -1,23 +1,7 @@
-import { DataTypes } from 'sequelize'
+const { DataTypes } = require('sequelize')
 
 // Model definition with sequelize connection injected
-const pokemonModel = (sequelize: {
-  define: (
-    arg0: string,
-    arg1: {
-      id: { type: any; defaultValue: any; primaryKey: boolean }
-      name: { type: any; allowNull: boolean }
-      image: { type: any; allowNull: boolean }
-      hp: { type: any; allowNull: boolean }
-      attack: { type: any; allowNull: boolean }
-      defense: { type: any; allowNull: boolean }
-      speed: { type: any; allowNull: boolean }
-      height: { type: any; allowNull: boolean }
-      weight: { type: any; allowNull: boolean }
-    },
-    arg2: { timestamps: boolean }
-  ) => void
-}) => {
+const pokemonModel = (sequelize) => {
   // Model definition
   sequelize.define(
     'Pokemon',
