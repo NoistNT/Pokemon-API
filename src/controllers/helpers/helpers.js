@@ -1,7 +1,6 @@
-import axios from 'axios'
-import { IPokemon, IPokemonTypeFromDB } from '../../types'
+const axios = require('axios')
 
-const getPokemonDetailsFromAPI = async (pokemonURL: string) => {
+const getPokemonDetailsFromAPI = async (pokemonURL) => {
   try {
     const { data } = await axios.get(pokemonURL)
 
@@ -11,7 +10,7 @@ const getPokemonDetailsFromAPI = async (pokemonURL: string) => {
     const { base_stat: attack } = stats[1]
     const { base_stat: defense } = stats[2]
     const { base_stat: speed } = stats[5]
-    const type = types.map((t: { type: { name: string } }) => t.type.name)
+    const type = types.map((t) => t.type.name)
 
     return {
       id,
@@ -26,15 +25,13 @@ const getPokemonDetailsFromAPI = async (pokemonURL: string) => {
       weight
     }
   } catch (error) {
-    if (error instanceof Error) {
-      throw new Error(
-        `Failed to fetch pokemon details from API. ${error.message}`
-      )
-    }
+    throw new Error(
+      `Failed to fetch pokemon details from API. ${error.message}`
+    )
   }
 }
 
-const getPokemonDetailsFromDB = async (pokemon: IPokemonTypeFromDB) => {
+const getPokemonDetailsFromDB = async (pokemon) => {
   try {
     const {
       id,
@@ -63,11 +60,7 @@ const getPokemonDetailsFromDB = async (pokemon: IPokemonTypeFromDB) => {
       weight
     }
   } catch (error) {
-    if (error instanceof Error) {
-      throw new Error(
-        `Failed to fetch pokemon details from db. ${error.message}`
-      )
-    }
+    throw new Error(`Failed to fetch pokemon details from db. ${error.message}`)
   }
 }
 
