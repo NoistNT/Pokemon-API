@@ -1,4 +1,4 @@
-// const { Type } = require('../../../db')
+const { Type } = require('../../../db')
 import * as dotenv from 'dotenv'
 dotenv.config()
 import { IPokemonType } from '../../../types'
@@ -17,11 +17,11 @@ const getTypes = async (url: string) => {
 
 const getTypesData = async () => {
   try {
-    // const typesDB = await Type.findAll()
+    const typesDB = await Type.findAll()
 
-    // if (typesDB.length) {
-    //   return typesDB
-    // }
+    if (typesDB.length) {
+      return typesDB
+    }
 
     const { data } = await axios.get(`${URL}/type`)
 
@@ -29,9 +29,9 @@ const getTypesData = async () => {
       data.results.map((type: IPokemonType) => getTypes(type.url))
     )
 
-    // console.log('Types loaded into database successfully')
+    console.log('Types loaded into database successfully')
 
-    // await Type.bulkCreate(types)
+    await Type.bulkCreate(types)
 
     return types
   } catch (error) {
