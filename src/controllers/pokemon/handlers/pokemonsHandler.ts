@@ -1,13 +1,13 @@
-import { IPokemonAPI } from '../../../types'
-const axios = require('axios')
+import { IPokemonAPI, IPokemon } from '../../../types'
+import axios from 'axios'
 import * as dotenv from 'dotenv'
 dotenv.config()
 
 const { URL } = process.env
-// const { Pokemon, Type } = require('../../../db')
+const { Pokemon, Type } = require('../../../db')
 const {
-  getPokemonDetailsFromAPI
-  // getPokemonDetailsFromDB
+  getPokemonDetailsFromAPI,
+  getPokemonDetailsFromDB
 } = require('../../helpers/helpers')
 
 const getPokemonsFromAPI = async () => {
@@ -28,33 +28,34 @@ const getPokemonsFromAPI = async () => {
   }
 }
 
-// const getPokemonsFromDB = async () => {
-//   try {
-//     const dbPokemons = await Pokemon.findAll({
-//       include: {
-//         model: Type,
-//         attributes: ['name']
-//       }
-//     })
+const getPokemonsFromDB = async () => {
+  try {
+    const dbPokemons = await Pokemon.findAll({
+      include: {
+        model: Type,
+        attributes: ['name']
+      }
+    })
 
-//     if (dbPokemons) {
-//       const pokemons = await Promise.all(
-//         dbPokemons.map((pokemon) => getPokemonDetailsFromDB(pokemon))
-//       )
+    if (dbPokemons) {
+      const pokemons = await Promise.all(
+        dbPokemons.map((pokemon: IPokemon) => getPokemonDetailsFromDB(pokemon))
+      )
 
-//       return pokemons
-//     }
-//   } catch (error) {
-//     throw new Error(`Failed to fetch pokemons from db. ${error.message}`)
-//   }
-// }
+      return pokemons
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(`Failed to fetch pokemons from db. ${error.message}`)
+    }
+  }
+}
 
 const getPokemonsData = async () => {
   try {
     const apiData = await getPokemonsFromAPI()
-    // const dbData = await getPokemonsFromDB()
-    // const pokemons = apiData.concat(dbData)
-    const pokemons = apiData
+    const dbData = await getPokemonsFromDB()
+    const pokemons = apiData?.concat(dbData)
 
     return pokemons
   } catch (error) {
@@ -66,20 +67,20 @@ const getPokemonsData = async () => {
 
 const getPokemonByName = async (name: string) => {
   try {
-    // const dbPokemon = await Pokemon.findOne({
-    //   where: { name: name.toLowerCase() },
-    //   include: [
-    //     {
-    //       model: Type,
-    //       attributes: ['name']
-    //     }
-    //   ]
-    // })
-    // if (dbPokemon) {
-    //   const pokemon = [await getPokemonDetailsFromDB(dbPokemon)]
+    const dbPokemon = await Pokemon.findOne({
+      where: { name: name.toLowerCase() },
+      include: [
+        {
+          model: Type,
+          attributes: ['name']
+        }
+      ]
+    })
+    if (dbPokemon) {
+      const pokemon = [await getPokemonDetailsFromDB(dbPokemon)]
 
-    //   return pokemon
-    // }
+      return pokemon
+    }
 
     const pokemonURL = `${URL}/pokemon/${name.toLowerCase()}`
     const pokemon = [await getPokemonDetailsFromAPI(pokemonURL)]
@@ -92,21 +93,21 @@ const getPokemonByName = async (name: string) => {
   }
 }
 
-const getPokemonByID = async (id: number | string) => {
+const getPokemonByID = async (id: number) => {
   try {
-    // if (isNaN(id)) {
-    //   const dbPokemon = await Pokemon.findByPk(id, {
-    //     include: {
-    //       model: Type,
-    //       attributes: ['name']
-    //     }
-    //   })
-    //   if (dbPokemon) {
-    //     const pokemon = await getPokemonDetailsFromDB(dbPokemon)
+    if (isNaN(id)) {
+      const dbPokemon = await Pokemon.findByPk(id, {
+        include: {
+          model: Type,
+          attributes: ['name']
+        }
+      })
+      if (dbPokemon) {
+        const pokemon = await getPokemonDetailsFromDB(dbPokemon)
 
-    //     return pokemon
-    //   }
-    // }
+        return pokemon
+      }
+    }
 
     const pokemonURL = `${URL}/pokemon/${id}`
     const pokemon = await getPokemonDetailsFromAPI(pokemonURL)

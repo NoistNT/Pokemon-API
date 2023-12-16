@@ -7,7 +7,7 @@ const morgan = require('morgan')
 
 const mainRouter = require('./routes/mainRouter.ts')
 
-// require('./db.js')
+require('./db.ts')
 
 const app: Express = express()
 
