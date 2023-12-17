@@ -8,6 +8,7 @@ const createPokemon = require('./createPokemon')
 
 const getPokemons = async (req, res) => {
   const { name } = req.query
+
   try {
     name
       ? res.status(200).json(await getPokemonByName(name))
@@ -19,6 +20,7 @@ const getPokemons = async (req, res) => {
 
 const getPokemon = async (req, res) => {
   const { id } = req.params
+
   try {
     res.status(200).json(await getPokemonByID(id))
   } catch (error) {
@@ -28,6 +30,7 @@ const getPokemon = async (req, res) => {
 
 const postPokemon = async (req, res) => {
   const pokemon = req.body
+
   try {
     res.status(201).json(await createPokemon(pokemon))
   } catch (error) {

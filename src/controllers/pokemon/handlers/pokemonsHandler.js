@@ -1,4 +1,5 @@
 const axios = require('axios')
+
 const { URL } = process.env
 const { Pokemon, Type } = require('../../../db')
 const {
@@ -64,6 +65,7 @@ const getPokemonByName = async (name) => {
         }
       ]
     })
+
     if (dbPokemon) {
       const pokemon = [await getPokemonDetailsFromDB(dbPokemon)]
 
@@ -88,6 +90,7 @@ const getPokemonByID = async (id) => {
           attributes: ['name']
         }
       })
+
       if (dbPokemon) {
         const pokemon = await getPokemonDetailsFromDB(dbPokemon)
 

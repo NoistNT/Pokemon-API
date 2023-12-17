@@ -1,7 +1,8 @@
 require('dotenv').config()
-const { Sequelize } = require('sequelize')
 const fs = require('fs')
 const path = require('path')
+
+const { Sequelize } = require('sequelize')
 const { DB_DIALECT, DB_USER, DB_PASSWORD, DB_HOST, DB_NAME } = process.env
 
 const sequelize = new Sequelize(
@@ -34,6 +35,7 @@ const capsEntries = entries.map((entry) => [
   entry[0][0].toUpperCase() + entry[0].slice(1),
   entry[1]
 ])
+
 sequelize.models = Object.fromEntries(capsEntries)
 
 // In sequelize.models we have all models to import as a property
