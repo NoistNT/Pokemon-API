@@ -1,6 +1,8 @@
-const { Type } = require('../../../db')
-const { URL } = process.env
 const axios = require('axios')
+
+const { Type } = require('../../../db')
+
+const { URL } = process.env
 
 const getTypes = async (url) => {
   const { data } = await axios.get(url)
@@ -15,6 +17,7 @@ const getTypes = async (url) => {
 const getTypesData = async () => {
   try {
     const typesDB = await Type.findAll()
+
     if (typesDB.length) {
       return typesDB
     }
@@ -24,6 +27,7 @@ const getTypesData = async () => {
     const types = await Promise.all(
       data.results.map((type) => getTypes(type.url))
     )
+
     console.log('Types loaded into database successfully')
 
     await Type.bulkCreate(types)
