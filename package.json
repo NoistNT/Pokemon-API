@@ -2,7 +2,7 @@
   "name": "poke-api",
   "version": "0.0.1",
   "description": "",
-  "author": "",
+  "author": "NoistNT",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
@@ -42,7 +42,8 @@
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "zod": "^3.22.4"
   },
   "jest": {
     "moduleFileExtensions": [
