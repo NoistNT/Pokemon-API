@@ -1,4 +1,4 @@
-import { Controller, Get, InternalServerErrorException } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { SeedResponse } from './entities/seeder.entity';
 import { SeederService } from './seeder.service';
 
@@ -13,15 +13,10 @@ export class SeederController {
    */
   @Get()
   async seed(): Promise<SeedResponse> {
-    try {
-      await this.seederService.seed();
-      return {
-        status: 201,
-        message: 'Types seeded successfully',
-      };
-    } catch (error) {
-      const typedError = error as Error;
-      throw new InternalServerErrorException(typedError.message);
-    }
+    await this.seederService.seed();
+    return {
+      status: 201,
+      message: 'Types seeded successfully',
+    };
   }
 }
