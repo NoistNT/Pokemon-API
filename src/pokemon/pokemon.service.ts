@@ -43,7 +43,7 @@ export class PokemonService {
       const isInApi = data.results.some((pokemon) => pokemon.name === name);
 
       if (isInDB || isInApi) {
-        throw new Error(`Pokemon with name ${name} already exists`);
+        throw new Error(`Name ${name} already exists`);
       }
 
       createPokemonDto.type = await this.typeModel.find({
@@ -52,16 +52,18 @@ export class PokemonService {
 
       const validatedData = createPokemonSchema.safeParse(createPokemonDto);
 
+      console.log(createPokemonDto);
+
       if (!validatedData.success) {
         throw new Error(
-          `Failed to validate pokemon data: ${validatedData.error.message}`,
+          `Failed to validate data: ${validatedData.error.message}`,
         );
       }
 
       return await new this.pokemonModel(createPokemonDto).save();
     } catch (error) {
       const typedError = error as Error;
-      throw new Error(`Failed to fetch data: ${typedError.message}`);
+      throw new Error(`Failed to create Pokemon: ${typedError.message}`);
     }
   }
 
