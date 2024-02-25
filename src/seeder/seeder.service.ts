@@ -16,7 +16,7 @@ export class SeederService {
    * @returns {Promise<Type>} A Promise that resolves to the fetched and validated type data.
    * @throws {Error} If fetching the type data fails or if the fetched data fails validation.
    */
-  async getType(url: string): Promise<Type> {
+  private async getType(url: string): Promise<Type> {
     try {
       const { data }: AxiosResponse<Type> = await axios.get(url);
       const validatedData = createTypeSchema.safeParse(data);
@@ -40,7 +40,7 @@ export class SeederService {
    * @returns {Promise<Type[]>} A Promise that resolves to an array of types data.
    * @throws {Error} If fetching types data fails.
    */
-  async getTypesDataFromApi(): Promise<Type[]> {
+  private async getTypesDataFromApi(): Promise<Type[]> {
     const { BASE_URL } = process.env;
     if (!BASE_URL) {
       throw new Error('BASE_URL not defined in environment variables');
