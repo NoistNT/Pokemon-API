@@ -15,9 +15,7 @@ export class TypeService {
    */
   async findAll(): Promise<Type[]> {
     try {
-      return await this.typeModel
-        .find()
-        .select('-_id -__v -createdAt -updatedAt');
+      return await this.typeModel.find().select('-_id id name url');
     } catch (error) {
       const typedError = error as Error;
       throw new Error(
