@@ -3,9 +3,6 @@ import {
   Controller,
   Delete,
   Get,
-  HttpCode,
-  HttpStatus,
-  InternalServerErrorException,
   NotFoundException,
   Param,
   Patch,
@@ -25,14 +22,8 @@ export class PokemonController {
    * @returns The created Pokemon.
    */
   @Post()
-  @HttpCode(HttpStatus.CREATED)
-  async create(@Body() createPokemonDto: CreatePokemonDto) {
-    try {
-      return await this.pokemonService.create(createPokemonDto);
-    } catch (error) {
-      const typedError = error as Error;
-      throw new InternalServerErrorException(typedError.message);
-    }
+  create(@Body() createPokemonDto: CreatePokemonDto) {
+    return this.pokemonService.create(createPokemonDto);
   }
 
   /**
@@ -40,13 +31,8 @@ export class PokemonController {
    * @returns A list of Pokemon.
    */
   @Get()
-  async findAllFromDb() {
-    try {
-      return await this.pokemonService.findAllFromDb();
-    } catch (error) {
-      const typedError = error as Error;
-      throw new InternalServerErrorException(typedError.message);
-    }
+  findAllFromDb() {
+    return this.pokemonService.findAllFromDb();
   }
 
   /**
@@ -55,17 +41,12 @@ export class PokemonController {
    * @returns The specified Pokemon.
    */
   @Get(':id')
-  async findOneFromDb(@Param('id') id: string) {
-    try {
-      const pokemon = await this.pokemonService.findOneFromDb(id);
-      if (!pokemon) {
-        throw new NotFoundException(`Pokemon with id ${id} not found`);
-      }
-      return pokemon;
-    } catch (error) {
-      const typedError = error as Error;
-      throw new InternalServerErrorException(typedError.message);
+  findOneFromDb(@Param('id') id: string) {
+    const pokemon = this.pokemonService.findOneFromDb(id);
+    if (!pokemon) {
+      throw new NotFoundException(`Pokemon with id ${id} not found`);
     }
+    return pokemon;
   }
 
   /**
@@ -75,16 +56,8 @@ export class PokemonController {
    * @returns The updated Pokemon.
    */
   @Patch(':id')
-  async update(
-    @Param('id') id: string,
-    @Body() updatePokemonDto: UpdatePokemonDto,
-  ) {
-    try {
-      return await this.pokemonService.update(id, updatePokemonDto);
-    } catch (error) {
-      const typedError = error as Error;
-      throw new InternalServerErrorException(typedError.message);
-    }
+  update(@Param('id') id: string, @Body() updatePokemonDto: UpdatePokemonDto) {
+    return this.pokemonService.update(id, updatePokemonDto);
   }
 
   /**
@@ -93,12 +66,7 @@ export class PokemonController {
    * @returns The deleted Pokemon.
    */
   @Delete(':id')
-  async remove(@Param('id') id: string) {
-    try {
-      return await this.pokemonService.remove(id);
-    } catch (error) {
-      const typedError = error as Error;
-      throw new InternalServerErrorException(typedError.message);
-    }
+  remove(@Param('id') id: string) {
+    return this.pokemonService.remove(id);
   }
 }

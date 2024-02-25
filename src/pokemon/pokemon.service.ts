@@ -1,15 +1,16 @@
-import { Pokemon } from '@/schemas/pokemon.schema';
+import { sanitizedString } from '@/lib/utils';
+import {
+  Pokemon,
+  PokemonApiResponse,
+  createPokemonSchema,
+} from '@/schemas/pokemon.schema';
 import { Type } from '@/schemas/type.schema';
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import axios, { AxiosResponse } from 'axios';
-import * as dotenv from 'dotenv';
 import { Model } from 'mongoose';
 import { CreatePokemonDto } from './dto/create-pokemon.dto';
 import { UpdatePokemonDto } from './dto/update-pokemon.dto';
-dotenv.config();
-
-const { BASE_URL } = process.env;
 
 @Injectable()
 export class PokemonService {
@@ -22,61 +23,45 @@ export class PokemonService {
    * Creates a new Pokemon.
    * @param createPokemonDto The data to create a new Pokemon.
    * @returns The newly created Pokemon.
+   * @throws {Error} When environmental variables are missing or validation fails.
    */
   async create(createPokemonDto: CreatePokemonDto): Promise<Pokemon> {
+    const { BASE_URL, TOTAL_POKEMONS } = process.env;
+    if (!BASE_URL || !TOTAL_POKEMONS) {
+      throw new Error('Required environment variables are not defined');
+    }
+
+    const name = sanitizedString(createPokemonDto.name);
+
     try {
-      const isInDB = await this.pokemonModel.findOne({
-        name: createPokemonDto.name.trim().toLowerCase(),
-      });
+      const [isInDB, { data }]: [boolean, AxiosResponse<PokemonApiResponse>] =
+        await Promise.all([
+          this.pokemonModel.findOne({ name }) as Promise<boolean>,
+          axios.get(`${BASE_URL}/pokemon?limit=${TOTAL_POKEMONS}`),
+        ]);
 
-      const { data }: AxiosResponse<{ results: { name: string }[] }> =
-        await axios.get(`${BASE_URL}/pokemon?limit=1281`);
-
-      const isInApi = data.results.find(
-        (pokemon) =>
-          pokemon.name === createPokemonDto.name.trim().toLowerCase(),
-      );
+      const isInApi = data.results.some((pokemon) => pokemon.name === name);
 
       if (isInDB || isInApi) {
+        throw new Error(`Pokemon with name ${name} already exists`);
+      }
+
+      createPokemonDto.type = await this.typeModel.find({
+        name: { $in: createPokemonDto.type.map(sanitizedString) },
+      });
+
+      const validatedData = createPokemonSchema.safeParse(createPokemonDto);
+
+      if (!validatedData.success) {
         throw new Error(
-          `Pokemon with name ${createPokemonDto.name.trim()} already exists`,
+          `Failed to validate pokemon data: ${validatedData.error.message}`,
         );
       }
 
-      if (
-        !createPokemonDto.name ||
-        !createPokemonDto.image ||
-        !createPokemonDto.hp ||
-        !createPokemonDto.attack ||
-        !createPokemonDto.defense ||
-        !createPokemonDto.speed ||
-        !createPokemonDto.height ||
-        !createPokemonDto.weight ||
-        !createPokemonDto.type
-      ) {
-        throw new Error('All fields are required');
-      }
-
-      // Sanitize input by trimming whitespace
-      createPokemonDto.name = createPokemonDto.name.trim().toLowerCase();
-      createPokemonDto.image = createPokemonDto.image.trim();
-      createPokemonDto.type = createPokemonDto.type.map((t) =>
-        t.trim().toLowerCase(),
-      );
-
-      // Find types in the Type schema
-      const types = await this.typeModel.find({
-        name: { $in: createPokemonDto.type.map((t) => t.trim().toLowerCase()) },
-      });
-
-      const newPokemon = await new this.pokemonModel(createPokemonDto).save();
-
-      await newPokemon.updateOne({ $push: { types: { $each: types } } });
-
-      return newPokemon;
+      return await new this.pokemonModel(createPokemonDto).save();
     } catch (error) {
       const typedError = error as Error;
-      throw new Error(`Failed to create pokemon: ${typedError.message}`);
+      throw new Error(`Failed to fetch data: ${typedError.message}`);
     }
   }
 
@@ -86,15 +71,9 @@ export class PokemonService {
    */
   async findAllFromDb(): Promise<Pokemon[]> {
     try {
-      const pokemons = await this.pokemonModel
+      return await this.pokemonModel
         .find()
         .select('-_id -createdAt -updatedAt -__v');
-
-      if (!pokemons.length) {
-        return [];
-      }
-
-      return pokemons;
     } catch (error) {
       const typedError = error as Error;
       throw new Error(`Failed to retrieve all pokemon: ${typedError.message}`);
@@ -107,18 +86,11 @@ export class PokemonService {
    * @returns A promise resolving to the Pokemon object if found, otherwise throws an error.
    */
   async findOneFromDb(id: string): Promise<Pokemon> {
-    try {
-      const pokemon = await this.pokemonModel.findOne({ id });
-
-      if (!pokemon) {
-        throw new Error(`Pokemon with id ${id} not found`);
-      }
-
-      return pokemon;
-    } catch (error) {
-      const typedError = error as Error;
-      throw new Error(`Failed to retrieve pokemon: ${typedError.message}`);
+    const pokemon = await this.pokemonModel.findOne({ id });
+    if (!pokemon) {
+      throw new Error(`Pokemon with id ${id} not found`);
     }
+    return pokemon;
   }
 
   /**
@@ -128,34 +100,25 @@ export class PokemonService {
    * @returns A promise resolving to void if the Pokemon was successfully updated, otherwise throws an error.
    */
   async update(id: string, updatePokemonDto: UpdatePokemonDto): Promise<void> {
-    try {
-      const pokemon = await this.pokemonModel.findOne({ id });
+    // Sanitize input by trimming whitespace
+    updatePokemonDto.name = updatePokemonDto.name?.trim().toLowerCase();
+    updatePokemonDto.image = updatePokemonDto.image?.trim();
+    updatePokemonDto.type = updatePokemonDto.type?.map((t) =>
+      sanitizedString(t),
+    );
 
-      if (!pokemon) {
-        throw new Error(`Pokemon with id ${id} not found`);
-      }
+    const types = await this.typeModel.find({
+      name: { $in: updatePokemonDto.type },
+    });
 
-      // Sanitize input by trimming whitespace
-      updatePokemonDto.name = updatePokemonDto.name?.trim().toLowerCase();
-      updatePokemonDto.image = updatePokemonDto.image?.trim();
-      updatePokemonDto.type = updatePokemonDto.type?.map((t) =>
-        t.trim().toLowerCase(),
-      );
+    const pokemon = await this.pokemonModel.findOneAndUpdate(
+      { id },
+      { $set: { types: { $each: types }, ...updatePokemonDto } },
+      { new: true },
+    );
 
-      // Find types in the Type schema
-      const types = await this.typeModel.find({
-        name: {
-          $in: updatePokemonDto.type?.map((t) => t.trim().toLowerCase()),
-        },
-      });
-
-      await pokemon.updateOne({
-        $set: { types: { $each: types } },
-      });
-      await pokemon.updateOne(updatePokemonDto);
-    } catch (error) {
-      const typedError = error as Error;
-      throw new Error(`Failed to update pokemon: ${typedError.message}`);
+    if (!pokemon) {
+      throw new Error(`Pokemon with id ${id} not found`);
     }
   }
 
@@ -165,17 +128,10 @@ export class PokemonService {
    * @returns A promise resolving to true if the Pokemon was successfully removed, otherwise throws an error.
    */
   async remove(id: string): Promise<boolean> {
-    try {
-      const result = await this.pokemonModel.deleteOne({ id });
-
-      if (result.deletedCount === 0) {
-        throw new Error(`Pokemon with id ${id} not found`);
-      }
-
-      return true;
-    } catch (error) {
-      const typedError = error as Error;
-      throw new Error(`Failed to delete pokemon: ${typedError.message}`);
+    const removed = await this.pokemonModel.findOneAndDelete({ id });
+    if (!removed) {
+      throw new Error(`Pokemon with id ${id} not found`);
     }
+    return true;
   }
 }
