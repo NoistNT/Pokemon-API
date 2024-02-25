@@ -19,7 +19,9 @@ export class SeederService {
   private async getType(url: string): Promise<Type> {
     try {
       const { data }: AxiosResponse<Type> = await axios.get(url);
-      const validatedData = createTypeSchema.safeParse(data);
+      const { id, name } = data;
+
+      const validatedData = createTypeSchema.safeParse({ id, name, url });
 
       if (!validatedData.success) {
         throw new Error(
