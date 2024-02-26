@@ -133,7 +133,6 @@ export class PokemonService {
         id: Number(id),
         name,
         image,
-        type,
         hp: baseStats.hp,
         attack: baseStats.attack,
         defense: baseStats.defense,
@@ -141,6 +140,7 @@ export class PokemonService {
         height,
         weight,
         userCreated: false,
+        type,
       };
     } catch (error) {
       const typedError = error as Error;
@@ -231,23 +231,44 @@ export class PokemonService {
   }
 
   /**
-   * Retrieves a specific Pokemon from the database by its ID.
+   * Retrieves a specific Pokemon by its ID, searching both the database and the API.
    *
    * @remarks
    * - Excludes internal fields and unnecessary type details for conciseness.
-   * - Throws a `NotFoundException` if the Pokemon with the provided ID is not found.
+   * - Throws a `DatabaseRetrievalError` or `ApiRetrievalError` if unable to fetch data from the respective source.
+   * - Throws an {Error} if the Pokemon is not found in either source.
    *
    * @param id - The ID of the Pokemon to search for.
-   * @returns {Promise<Pokemon>} A promise resolving to the fetched Pokemon object, or throws a `NotFoundException` if not found.
+   * @returns {Promise<Pokemon>} A promise resolving to the fetched Pokemon object, or throws an error if not found.
    */
-  async findOneFromDb(id: string): Promise<Pokemon> {
+  async findById(id: string | number): Promise<Pokemon | PokemonEntity> {
+    const { BASE_URL } = process.env;
+
+    if (!BASE_URL) {
+      throw new Error('Required environment variables are not defined');
+    }
+
     try {
-      // Exclude internal fields and unnecessary type details
-      const pokemon = await this.pokemonModel
-        .findOne({ _id: id })
-        .select(
-          '-createdAt -updatedAt -__v -type._id -type.url -type.createdAt -type.updatedAt -type.__v',
-        );
+      // Check if the ID is longer than 10 characters meaning it is an internal ID from the database
+      if (typeof id === 'string' && id.length > 10) {
+        // Exclude internal fields and unnecessary type details
+        const pokemonDb = await this.pokemonModel
+          .findOne({ id })
+          .select(
+            '-createdAt -updatedAt -__v -type._id -type.url -type.createdAt -type.updatedAt -type.__v',
+          );
+
+        console.log(pokemonDb);
+
+        if (!pokemonDb) {
+          throw new Error(`Pokemon with id ${id} not found`);
+        }
+
+        return pokemonDb;
+      }
+
+      // Fetch data from the API since the ID is less than 10 characters meaning it's a number
+      const pokemon = await this.getPokemonFromApi(`${BASE_URL}/pokemon/${id}`);
 
       if (!pokemon) {
         throw new Error(`Pokemon with id ${id} not found`);
@@ -270,7 +291,7 @@ export class PokemonService {
    *  - Validates that provided type names exist in the database and name is unique.
    *  - Throws informative errors for various failure scenarios.
    *
-   * @param id - The _id of the Pokemon to update.
+   * @param id - The id of the Pokemon to update.
    * @param updatePokemonDto - The data to update the Pokemon with.
    * @returns {Promise<Pokemon>} A promise resolving to the updated Pokemon document, or throws an error if the update fails.
    */
@@ -289,7 +310,8 @@ export class PokemonService {
         name: { $in: sanitizedDto.type },
       });
 
-      const existingPokemon = await this.pokemonModel.findById(id);
+      const existingPokemon = await this.pokemonModel.findOne({ id });
+
       if (!existingPokemon) {
         throw new Error(`Pokemon with id ${id} not found`);
       }

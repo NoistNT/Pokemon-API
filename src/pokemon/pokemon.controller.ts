@@ -11,6 +11,7 @@ import {
 import { CreatePokemonDto } from './dto/create-pokemon.dto';
 import { UpdatePokemonDto } from './dto/update-pokemon.dto';
 import { PokemonService } from './pokemon.service';
+import { PokemonEntity } from './entities/pokemon.entity';
 
 @Controller('pokemon')
 export class PokemonController {
@@ -56,8 +57,8 @@ export class PokemonController {
    * @returns {Promise<Pokemon>} A promise resolving to the fetched Pokemon object.
    */
   @Get(':id')
-  findOneFromDb(@Param('id') id: string): Promise<Pokemon> {
-    return this.pokemonService.findOneFromDb(id);
+  findById(@Param('id') id: string): Promise<Pokemon | PokemonEntity> {
+    return this.pokemonService.findById(id);
   }
 
   /**
