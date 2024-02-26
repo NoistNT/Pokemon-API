@@ -1,5 +1,5 @@
 export class CreatePokemonDto {
-  id!: string;
+  id!: number;
   name!: string;
   image!: string;
   hp!: number;
@@ -8,5 +8,6 @@ export class CreatePokemonDto {
   speed!: number;
   height!: number;
   weight!: number;
+  userCreated!: boolean;
   type!: Array<string>;
 }

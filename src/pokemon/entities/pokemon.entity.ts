@@ -1,5 +1,5 @@
-export class Pokemon {
-  id!: number | string;
+export class PokemonEntity {
+  id!: number;
   name!: string;
   image!: string;
   hp!: number;
@@ -8,5 +8,6 @@ export class Pokemon {
   speed!: number;
   height!: number;
   weight!: number;
-  type!: Array<string>;
+  userCreated!: boolean;
+  type!: { name: string }[];
 }

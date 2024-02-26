@@ -3,8 +3,6 @@ import { z } from 'zod';
 
 @Schema({ timestamps: true })
 export class Type {
-  @Prop({ required: true, unique: true })
-  id!: number;
   @Prop({
     required: true,
     unique: true,
@@ -19,7 +17,6 @@ export class Type {
 }
 
 export const createTypeSchema = z.object({
-  id: z.number().int().positive(),
   name: z.string().min(2).max(20).trim().toLowerCase(),
   url: z.string().url().trim(),
 });
