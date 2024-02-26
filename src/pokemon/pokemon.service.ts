@@ -284,6 +284,49 @@ export class PokemonService {
   }
 
   /**
+   * Retrieves a Pokemon by its name, searching both the database and the API.
+   *
+   * @remarks
+   * - Sanitizes the provided name before the search.
+   * - Attempts to find the Pokemon in the database first, then in the API if not found.
+   * - Throws an {Error} if the Pokemon is not found in either source.
+   *
+   * @param name - The name of the Pokemon to search for.
+   * @returns {Promise<Pokemon>} A promise resolving to an array of the fetched Pokemon object, or throws an error if not found.
+   */
+  async findByName(name: string): Promise<Pokemon[] | PokemonEntity[]> {
+    const { BASE_URL } = process.env;
+
+    if (!BASE_URL) {
+      throw new Error('Required environment variables are not defined');
+    }
+
+    const sanitizedName = sanitizedString(name);
+
+    try {
+      const pokemonDB = await this.pokemonModel.findOne({
+        name: sanitizedName,
+      });
+
+      if (pokemonDB) return [pokemonDB];
+
+      const url = `${BASE_URL}/pokemon/${sanitizedName}`;
+      const pokemonApi = await this.getPokemonFromApi(url);
+
+      if (!pokemonApi) {
+        throw new Error(`Pokemon with name '${sanitizedName}' not found`);
+      }
+
+      return [pokemonApi];
+    } catch (error) {
+      const typedError = error as Error;
+      throw new Error(
+        `Failed to retrieve data from database: ${typedError.message}`,
+      );
+    }
+  }
+
+  /**
    * Updates a Pokemon in the database by its _id property.
    *
    * @remarks

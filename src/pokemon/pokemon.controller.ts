@@ -13,6 +13,11 @@ import { UpdatePokemonDto } from './dto/update-pokemon.dto';
 import { PokemonService } from './pokemon.service';
 import { PokemonEntity } from './entities/pokemon.entity';
 
+/**
+ * @Controller('pokemon')
+ *
+ * This controller handles API requests related to Pokemon resources.
+ */
 @Controller('pokemon')
 export class PokemonController {
   constructor(private readonly pokemonService: PokemonService) {}
@@ -59,6 +64,24 @@ export class PokemonController {
   @Get(':id')
   findById(@Param('id') id: string): Promise<Pokemon | PokemonEntity> {
     return this.pokemonService.findById(id);
+  }
+
+  /**
+   * Retrieves a Pokemon by its name, searching both the database and the API.
+   *
+   * @remarks
+   * - Expects a Pokemon name in the request parameter `name`.
+   * - Delegates the retrieval logic to the `pokemonService.findByName` method.
+   * - Returns a promise resolving to an array of the fetched Pokemon object, or throws an error if not found.
+   *
+   * @param name - The name of the Pokemon to search for.
+   * @returns {Promise<Pokemon>} A promise resolving to an array of the fetched Pokemon object, or throws an error if not found.
+   */
+  @Get('name/:name')
+  findByName(
+    @Param('name') name: string,
+  ): Promise<Pokemon[] | PokemonEntity[]> {
+    return this.pokemonService.findByName(name);
   }
 
   /**
