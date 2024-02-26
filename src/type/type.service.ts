@@ -8,14 +8,18 @@ export class TypeService {
   constructor(@InjectModel('Type') private readonly typeModel: Model<Type>) {}
 
   /**
-   * Retrieves all instances of Type from the database asynchronously.
+   * Retrieves all Type instances from the database asynchronously.
    *
-   * @returns {Promise<Type[]>} A Promise that resolves to an array of Type instances.
-   * @throws {Error} If an error occurs while querying the database.
+   * @remarks
+   * - Excludes internal fields (`createdAt`, `updatedAt`, `__v`) for conciseness.
+   * - Includes only essential properties (`_id`, `name`, `url`).
+   * - Throws an informative error if retrieval fails.
+   *
+   * @returns {Promise<Type[]>} A promise resolving to an array of Type objects.
    */
   async findAll(): Promise<Type[]> {
     try {
-      return await this.typeModel.find().select('-_id id name url');
+      return await this.typeModel.find().select('_id name url');
     } catch (error) {
       const typedError = error as Error;
       throw new Error(
@@ -25,21 +29,27 @@ export class TypeService {
   }
 
   /**
-   * Finds a type by its id property.
+   * Finds a specific Type instance by its ID.
    *
-   * @param {number} id The unique identifier of the type to find.
-   * @returns {Promise<Type>} A Promise that resolves to the found type.
-   * @throws {NotFoundException} If the specified type is not found.
-   * @throws {Error} If the specified type is not found or an error occurs while querying the database.
+   * @remarks
+   * - Excludes internal fields (`createdAt`, `updatedAt`, `__v`) for conciseness.
+   * - Includes only essential properties (`_id`, `name`, `url`).
+   * - Throws a `NotFoundException` if the type is not found.
+   * - Throws an informative error if retrieval fails.
+   *
+   * @param {number} id - The unique identifier of the type to find.
+   * @returns {Promise<Type>} A promise resolving to the fetched Type object.
    */
   async findOne(id: number): Promise<Type> {
     try {
       const type = await this.typeModel
-        .findOne({ id })
-        .select('-_id id name url');
+        .findOne({ _id: id })
+        .select('_id name url');
+
       if (!type) {
         throw new Error(`Type with id ${id} not found`);
       }
+
       return type;
     } catch (error) {
       const typedError = error as Error;
