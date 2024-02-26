@@ -10,18 +10,19 @@ export class SeederService {
   constructor(@InjectModel('Type') private readonly typeModel: Model<Type>) {}
 
   /**
-   * Fetches type data from the provided URL and performs validation.
+   * Fetches type data from the provided URL, performs validation, and returns a Type object.
    *
    * @param {string} url The URL from which to fetch the type data.
-   * @returns {Promise<Type>} A Promise that resolves to the fetched and validated type data.
+   * @returns {Promise<Type>} A Promise that resolves to the validated Type object.
    * @throws {Error} If fetching the type data fails or if the fetched data fails validation.
    */
   private async getType(url: string): Promise<Type> {
     try {
       const { data }: AxiosResponse<Type> = await axios.get(url);
-      const { id, name } = data;
+      const { name } = data;
 
-      const validatedData = createTypeSchema.safeParse({ id, name, url });
+      // Validate data against the defined Type schema
+      const validatedData = createTypeSchema.safeParse({ name, url });
 
       if (!validatedData.success) {
         throw new Error(
@@ -37,9 +38,9 @@ export class SeederService {
   }
 
   /**
-   * Retrieves types data from the API.
+   * Retrieves type data from the API and returns an array of Type objects.
    *
-   * @returns {Promise<Type[]>} A Promise that resolves to an array of types data.
+   * @returns {Promise<Type[]>} A Promise that resolves to an array of Type objects.
    * @throws {Error} If fetching types data fails.
    */
   private async getTypesDataFromApi(): Promise<Type[]> {
@@ -49,13 +50,16 @@ export class SeederService {
     }
 
     try {
+      // Specify expected API response structure
       const { data }: AxiosResponse<TypeApiResponse> = await axios.get(
         `${BASE_URL}/type`,
       );
 
-      return await Promise.all(
-        data.results.map((type) => this.getType(type.url)),
-      );
+      // Ensure results array and extract type urls
+      const typeUrls = data.results.map((type) => type.url);
+
+      // Use Promise.all for concurrent fetching and validation
+      return await Promise.all(typeUrls.map((url) => this.getType(url)));
     } catch (error) {
       const typedError = error as Error;
       throw new Error(`Failed to fetch types data: ${typedError.message}`);
@@ -65,7 +69,7 @@ export class SeederService {
   /**
    * Seeds the database with types data if it's not already seeded.
    *
-   * @returns {Promise<SeedResponse>} A Promise that resolves to an object containing the status and message of the seed operation.
+   * @returns {Promise<SeedResponse>} A Promise that resolves to a response object with status and message.
    * @throws {Error} If seeding types data fails.
    */
   async seed(): Promise<SeedResponse> {
@@ -76,6 +80,8 @@ export class SeederService {
       const types = await this.getTypesDataFromApi();
       await this.typeModel.deleteMany({});
       await this.typeModel.insertMany(types);
+
+      // Commit the transaction if successful
       await session.commitTransaction();
 
       return {
@@ -83,10 +89,12 @@ export class SeederService {
         message: 'Pokemon types seeded successfully',
       };
     } catch (error) {
+      // Abort transaction if any error occurs
       await session.abortTransaction();
       const typedError = error as Error;
       throw new Error(`Failed to seed types data: ${typedError.message}`);
     } finally {
+      // End the session regardless of success or failure
       session.endSession();
     }
   }
