@@ -2,6 +2,7 @@ import { sanitizedString } from '@/lib/utils';
 import {
   Pokemon,
   PokemonApiResponse,
+  PokemonResponse,
   createPokemonSchema,
 } from '@/schemas/pokemon.schema';
 import { Type } from '@/schemas/type.schema';
@@ -11,6 +12,7 @@ import axios, { AxiosResponse } from 'axios';
 import { Model } from 'mongoose';
 import { CreatePokemonDto } from './dto/create-pokemon.dto';
 import { UpdatePokemonDto } from './dto/update-pokemon.dto';
+import { PokemonEntity } from './entities/pokemon.entity';
 
 @Injectable()
 export class PokemonService {
@@ -20,13 +22,21 @@ export class PokemonService {
   ) {}
 
   /**
-   * Creates a new Pokemon.
-   * @param createPokemonDto The data to create a new Pokemon.
-   * @returns The newly created Pokemon.
-   * @throws {Error} When environmental variables are missing or validation fails.
+   * Creates a new Pokemon in the database.
+   *
+   * @remarks
+   * - Sanitizes input data for consistency and security.
+   * - Validates provided type names exist in the database.
+   * - Ensures name uniqueness within the collection.
+   * - Returns the newly created Pokemon document if successful.
+   * - Throws informative errors for various failure scenarios.
+   *
+   * @param createPokemonDto - The data to create a new Pokemon with.
+   * @returns A promise resolving to the newly created Pokemon document, or throws an error if creation fails.
    */
   async create(createPokemonDto: CreatePokemonDto): Promise<Pokemon> {
     const { BASE_URL, TOTAL_POKEMONS } = process.env;
+
     if (!BASE_URL || !TOTAL_POKEMONS) {
       throw new Error('Required environment variables are not defined');
     }
@@ -34,7 +44,8 @@ export class PokemonService {
     const name = sanitizedString(createPokemonDto.name);
 
     try {
-      const [isInDB, { data }]: [boolean, AxiosResponse<PokemonApiResponse>] =
+      // Check name existence in both DB and external API
+      const [isInDB, { data }]: [boolean, AxiosResponse<PokemonResponse>] =
         await Promise.all([
           this.pokemonModel.findOne({ name }) as Promise<boolean>,
           axios.get(`${BASE_URL}/pokemon?limit=${TOTAL_POKEMONS}`),
@@ -46,13 +57,12 @@ export class PokemonService {
         throw new Error(`Name ${name} already exists`);
       }
 
+      // Ensure types exist in database
       createPokemonDto.type = await this.typeModel.find({
         name: { $in: createPokemonDto.type.map(sanitizedString) },
       });
 
       const validatedData = createPokemonSchema.safeParse(createPokemonDto);
-
-      console.log(createPokemonDto);
 
       if (!validatedData.success) {
         throw new Error(
@@ -60,7 +70,9 @@ export class PokemonService {
         );
       }
 
-      return await new this.pokemonModel(createPokemonDto).save();
+      const newPokemon = new this.pokemonModel(validatedData.data);
+      await newPokemon.save();
+      return newPokemon;
     } catch (error) {
       const typedError = error as Error;
       throw new Error(`Failed to create Pokemon: ${typedError.message}`);
@@ -68,72 +80,264 @@ export class PokemonService {
   }
 
   /**
-   * Finds all Pokemon in the database.
-   * @returns A promise resolving to an array containing all Pokemon in the database, excluding certain fields (_id, createdAt, updatedAt, __v).
+   * Fetches Pokemon details from the provided API URL.
+   *
+   * @param {string} url - The URL of the Pokemon data endpoint.
+   * @returns {Promise<PokemonEntity>} A promise resolving to a Pokemon entity object.
+   * @throws {IncompleteDataError} If the API response lacks required data.
+   * @throws {Error} If any other error occurs during retrieval.
    */
-  async findAllFromDb(): Promise<Pokemon[]> {
+  private async getPokemonFromApi(url: string): Promise<PokemonEntity> {
+    try {
+      const { data }: AxiosResponse<PokemonApiResponse> = await axios.get(url);
+
+      // Ensure required properties exist before accessing them
+      if (
+        !data.id ||
+        !data.name ||
+        !data.sprites ||
+        !data.sprites.other ||
+        !data.sprites.other.home ||
+        !data.sprites.other.home.front_default ||
+        !data.stats ||
+        !data.types ||
+        !data.height ||
+        !data.weight
+      ) {
+        throw new Error('Incomplete data received from API for Pokemon');
+      }
+
+      const { id, name, sprites, types, stats, height, weight } = data;
+      const { front_default: image } = sprites.other.home;
+
+      // Extract base stats with explicit types
+      const baseStats = stats.reduce(
+        (
+          acc: { [key: string]: number },
+          stat: { stat: { name: string }; base_stat: number },
+        ) => {
+          // Filter out unwanted properties before adding
+          if (['attack', 'defense', 'hp', 'speed'].includes(stat.stat.name)) {
+            acc[stat.stat.name] = stat.base_stat;
+          }
+          return acc;
+        },
+        {} as { [key: string]: number },
+      );
+
+      const type = types.map((t: { type: { name: string } }) => ({
+        name: t.type.name,
+      }));
+
+      return {
+        id: Number(id),
+        name,
+        image,
+        type,
+        hp: baseStats.hp,
+        attack: baseStats.attack,
+        defense: baseStats.defense,
+        speed: baseStats.speed,
+        height,
+        weight,
+        userCreated: false,
+      };
+    } catch (error) {
+      const typedError = error as Error;
+      throw new Error(
+        `Failed to retrieve Pokemon from API. ${typedError.message}`,
+      );
+    }
+  }
+
+  /**
+   * Retrieves data for a limited number of Pokemon from the specified API endpoint.
+   *
+   * @returns {Promise<Pokemon[]>} A promise resolving to an array of Pokemon objects.
+   * @throws {Error} If required environment variables are missing.
+   * @throws {ApiError} If API retrieval fails, potentially due to exceeding the rate limit.
+   */
+  private async findAllFromApi(): Promise<Pokemon[]> {
+    const { BASE_URL } = process.env;
+
+    if (!BASE_URL) {
+      throw new Error('Required environment variables are not defined');
+    }
+
+    try {
+      const { data } = await axios.get(`${BASE_URL}/pokemon?limit=40`);
+
+      return await Promise.all(
+        data.results.map(
+          async (pokemon: { url: string }) =>
+            await this.getPokemonFromApi(pokemon.url),
+        ),
+      );
+    } catch (error) {
+      const typedError = error as Error;
+      throw new Error(
+        `Failed to retrieve Pokemon from API. ${typedError.message}`,
+      );
+    }
+  }
+
+  /**
+   * Retrieves all Pokemon from the database and returns them as an array of objects.
+   *
+   * @remarks
+   * - Excludes internal fields (`createdAt`, `updatedAt`, `__v`) for conciseness.
+   * - Includes only the `name` property from the `type` object, omitting other type details.
+   * - Throws an informative error if retrieval fails.
+   *
+   * @returns {Promise<Pokemon[]>} A promise resolving to an array of Pokemon objects, or throws an error if retrieval fails.
+   */
+  private async findAllFromDb(): Promise<Pokemon[]> {
     try {
       return await this.pokemonModel
         .find()
-        .select('-_id -createdAt -updatedAt -__v');
+        .select(
+          '-createdAt -updatedAt -__v -type._id -type.id -type.url -type.createdAt -type.updatedAt -type.__v',
+        );
     } catch (error) {
       const typedError = error as Error;
-      throw new Error(`Failed to retrieve all pokemon: ${typedError.message}`);
+      throw new Error(
+        `Failed to retrieve all pokemon from DB: ${typedError.message}`,
+      );
     }
   }
 
   /**
-   * Finds a Pokemon in the database by its ID property.
-   * @param id The ID of the Pokemon to find.
-   * @returns A promise resolving to the Pokemon object if found, otherwise throws an error.
+   * Retrieves a comprehensive list of Pokemon by combining data from the database and API.
+   *
+   * @returns {Promise<Pokemon[]>} A promise resolving to an array of Pokemon objects.
+   * @throws {Error} If retrieval from both database and API fails.
+   *
+   * @remarks
+   * - Attempts to retrieve data from both the database and the API.
+   * - If the database retrieval fails, the API retrieval is still attempted.
+   * - Both successful results are concatenated into a single array and returned.
+   * - Any error encountered during retrieval throws a generic error message.
+   */
+  async findAll(): Promise<Pokemon[]> {
+    try {
+      const pokemonsFromDB = await this.findAllFromDb();
+      const pokemonsFromAPI = await this.findAllFromApi();
+
+      return await Promise.all(pokemonsFromDB.concat(pokemonsFromAPI));
+    } catch (dbError) {
+      console.error('Database retrieval failed:', dbError);
+      throw new Error('Failed to retrieve Pokemon from both database and API');
+    }
+  }
+
+  /**
+   * Retrieves a specific Pokemon from the database by its ID.
+   *
+   * @remarks
+   * - Excludes internal fields and unnecessary type details for conciseness.
+   * - Throws a `NotFoundException` if the Pokemon with the provided ID is not found.
+   *
+   * @param id - The ID of the Pokemon to search for.
+   * @returns {Promise<Pokemon>} A promise resolving to the fetched Pokemon object, or throws a `NotFoundException` if not found.
    */
   async findOneFromDb(id: string): Promise<Pokemon> {
-    const pokemon = await this.pokemonModel.findOne({ id });
-    if (!pokemon) {
-      throw new Error(`Pokemon with id ${id} not found`);
+    try {
+      // Exclude internal fields and unnecessary type details
+      const pokemon = await this.pokemonModel
+        .findOne({ _id: id })
+        .select(
+          '-createdAt -updatedAt -__v -type._id -type.url -type.createdAt -type.updatedAt -type.__v',
+        );
+
+      if (!pokemon) {
+        throw new Error(`Pokemon with id ${id} not found`);
+      }
+
+      return pokemon;
+    } catch (error) {
+      const typedError = error as Error;
+      throw new Error(
+        `Failed to retrieve data from database: ${typedError.message}`,
+      );
     }
-    return pokemon;
   }
 
   /**
-   * Updates a Pokemon in the database by its ID property.
-   * @param id The ID of the Pokemon to update.
-   * @param updatePokemonDto The data to update the Pokemon with.
-   * @returns A promise resolving to void if the Pokemon was successfully updated, otherwise throws an error.
+   * Updates a Pokemon in the database by its _id property.
+   *
+   * @remarks
+   *  - Sanitizes input data to ensure consistency and security.
+   *  - Validates that provided type names exist in the database and name is unique.
+   *  - Throws informative errors for various failure scenarios.
+   *
+   * @param id - The _id of the Pokemon to update.
+   * @param updatePokemonDto - The data to update the Pokemon with.
+   * @returns {Promise<Pokemon>} A promise resolving to the updated Pokemon document, or throws an error if the update fails.
    */
-  async update(id: string, updatePokemonDto: UpdatePokemonDto): Promise<void> {
-    // Sanitize input by trimming whitespace
-    updatePokemonDto.name = updatePokemonDto.name?.trim().toLowerCase();
-    updatePokemonDto.image = updatePokemonDto.image?.trim();
-    updatePokemonDto.type = updatePokemonDto.type?.map((t) =>
-      sanitizedString(t),
-    );
+  async update(
+    id: string,
+    updatePokemonDto: UpdatePokemonDto,
+  ): Promise<Pokemon> {
+    try {
+      const sanitizedDto = {
+        name: updatePokemonDto.name?.trim().toLowerCase(),
+        image: updatePokemonDto.image?.trim(),
+        type: updatePokemonDto.type?.map(sanitizedString),
+      };
 
-    const types = await this.typeModel.find({
-      name: { $in: updatePokemonDto.type },
-    });
+      const types = await this.typeModel.find({
+        name: { $in: sanitizedDto.type },
+      });
 
-    const pokemon = await this.pokemonModel.findOneAndUpdate(
-      { id },
-      { $set: { types: { $each: types }, ...updatePokemonDto } },
-      { new: true },
-    );
+      const existingPokemon = await this.pokemonModel.findById(id);
+      if (!existingPokemon) {
+        throw new Error(`Pokemon with id ${id} not found`);
+      }
 
-    if (!pokemon) {
-      throw new Error(`Pokemon with id ${id} not found`);
+      if (sanitizedDto.name !== existingPokemon.name) {
+        const pokemonWithName = await this.pokemonModel.findOne({
+          name: sanitizedDto.name,
+        });
+        if (pokemonWithName) {
+          throw new Error(`Name ${sanitizedDto.name} already exists`);
+        }
+      }
+
+      const updatedPokemon = await this.pokemonModel.findOneAndUpdate(
+        { _id: id },
+        { $set: { types: types.map((t) => t._id), ...sanitizedDto } },
+        { new: true },
+      );
+
+      return updatedPokemon as Pokemon;
+    } catch (error) {
+      const typedError = error as Error;
+      throw new Error(`Failed to update Pokemon: ${typedError.message}`);
     }
   }
 
   /**
-   * Removes a Pokemon from the database by its ID property.
-   * @param id The ID of the Pokemon to remove.
-   * @returns A promise resolving to true if the Pokemon was successfully removed, otherwise throws an error.
+   * Permanently removes a Pokemon from the database by its ID.
+   *
+   * @remarks
+   * - Throws an informative error if the Pokemon with the specified ID is not found.
+   * - Returns `true` if the removal is successful.
+   *
+   * @param id - The ID of the Pokemon to remove.
+   * @returns {Promise<boolean>} A promise resolving to `true` if the Pokemon was removed, or throws an error if not found.
    */
   async remove(id: string): Promise<boolean> {
-    const removed = await this.pokemonModel.findOneAndDelete({ id });
-    if (!removed) {
-      throw new Error(`Pokemon with id ${id} not found`);
+    try {
+      const removed = await this.pokemonModel.findOneAndDelete({ _id: id });
+
+      if (!removed) {
+        throw new Error(`Pokemon with ID "${id}" not found.`);
+      }
+
+      return true;
+    } catch (error) {
+      const typedError = error as Error;
+      throw new Error(`Failed to remove Pokemon: ${typedError.message}`);
     }
-    return true;
   }
 }

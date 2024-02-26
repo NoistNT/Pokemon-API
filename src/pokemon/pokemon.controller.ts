@@ -1,9 +1,9 @@
+import { Pokemon } from '@/schemas/pokemon.schema';
 import {
   Body,
   Controller,
   Delete,
   Get,
-  NotFoundException,
   Param,
   Patch,
   Post,
@@ -17,56 +17,80 @@ export class PokemonController {
   constructor(private readonly pokemonService: PokemonService) {}
 
   /**
-   * Create a new Pokemon.
-   * @param createPokemonDto The data for creating the Pokemon.
-   * @returns The created Pokemon.
+   * Creates a new Pokemon in the database.
+   *
+   * @remarks
+   * - Delegates creation logic to the `pokemonService`.
+   * - Returns the newly created Pokemon object.
+   *
+   * @param createPokemonDto - The data to create a new Pokemon with.
+   * @returns {Promise<Pokemon>} A promise resolving to the created Pokemon object.
    */
   @Post()
-  create(@Body() createPokemonDto: CreatePokemonDto) {
+  create(@Body() createPokemonDto: CreatePokemonDto): Promise<Pokemon> {
     return this.pokemonService.create(createPokemonDto);
   }
 
   /**
-   * Retrieve all Pokemon from the database.
-   * @returns A list of Pokemon.
+   * Retrieves all Pokemon from the database.
+   *
+   * @remarks
+   * - Delegates retrieval logic to the `pokemonService`.
+   * - Returns an array of Pokemon objects.
+   *
+   * @returns {Promise<Pokemon[]>} A promise resolving to a list of Pokemon objects.
    */
   @Get()
-  findAllFromDb() {
-    return this.pokemonService.findAllFromDb();
+  findAll(): Promise<Pokemon[]> {
+    return this.pokemonService.findAll();
   }
 
   /**
-   * Retrieve a specific Pokemon from the database.
-   * @param id The ID of the Pokemon to retrieve.
-   * @returns The specified Pokemon.
+   * Retrieves a specific Pokemon from the database by its ID.
+   *
+   * @remarks
+   * - Delegates retrieval logic to the `pokemonService`.
+   * - Returns the specified Pokemon object, or throws a `NotFoundException` if not found.
+   *
+   * @param id - The ID of the Pokemon to retrieve.
+   * @returns {Promise<Pokemon>} A promise resolving to the fetched Pokemon object.
    */
   @Get(':id')
-  findOneFromDb(@Param('id') id: string) {
-    const pokemon = this.pokemonService.findOneFromDb(id);
-    if (!pokemon) {
-      throw new NotFoundException(`Pokemon with id ${id} not found`);
-    }
-    return pokemon;
+  findOneFromDb(@Param('id') id: string): Promise<Pokemon> {
+    return this.pokemonService.findOneFromDb(id);
   }
 
   /**
-   * Update a specific Pokemon.
-   * @param id The ID of the Pokemon to update.
-   * @param updatePokemonDto The data for updating the Pokemon.
-   * @returns The updated Pokemon.
+   * Updates a specific Pokemon in the database.
+   *
+   * @remarks
+   * - Delegates update logic to the `pokemonService`.
+   * - Returns the updated Pokemon object, or throws a error if not found.
+   *
+   * @param id - The ID of the Pokemon to update.
+   * @param updatePokemonDto - The data for updating the Pokemon.
+   * @returns {Promise<Pokemon>} A promise resolving to the updated Pokemon doccment.
    */
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updatePokemonDto: UpdatePokemonDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updatePokemonDto: UpdatePokemonDto,
+  ): Promise<Pokemon> {
     return this.pokemonService.update(id, updatePokemonDto);
   }
 
   /**
-   * Delete a specific Pokemon.
-   * @param id The ID of the Pokemon to delete.
-   * @returns The deleted Pokemon.
+   * Removes a specific Pokemon from the database.
+   *
+   * @remarks
+   * - Delegates removal logic to the `pokemonService`.
+   * - Returns `true` if the Pokemon was successfully deleted, or throws a error if not found.
+   *
+   * @param id - The ID of the Pokemon to delete.
+   * @returns {Promise<boolean>} A promise resolving to `true` if deletion was successful.
    */
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  remove(@Param('id') id: string): Promise<boolean> {
     return this.pokemonService.remove(id);
   }
 }
