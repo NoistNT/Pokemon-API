@@ -5,7 +5,12 @@ import { createTypeSchema } from './type.schema';
 
 @Schema({ timestamps: true })
 export class Pokemon {
-  @Prop({ required: true, unique: true, default: () => crypto.randomUUID() })
+  @Prop({
+    required: true,
+    unique: true,
+    index: true,
+    default: () => crypto.randomUUID(),
+  })
   id!: string;
   @Prop({
     required: true,
@@ -19,7 +24,7 @@ export class Pokemon {
     required: true,
     trim: true,
     default:
-      'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png',
+      'https://res.cloudinary.com/dsg5ofk4e/image/upload/v1709047835/pokewiki/60f684ec58ea6ded58112eac2324bfa8.webp',
   })
   image!: string;
   @Prop({ required: true, default: 1, min: 1, max: 999 })
@@ -47,7 +52,7 @@ export const createPokemonSchema = z.object({
     .string()
     .trim()
     .default(
-      'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png',
+      'https://res.cloudinary.com/dsg5ofk4e/image/upload/v1709047835/pokewiki/60f684ec58ea6ded58112eac2324bfa8.webp',
     ),
   hp: z.number().int().min(1).max(999).default(1),
   attack: z.number().int().min(1).max(999).default(1),

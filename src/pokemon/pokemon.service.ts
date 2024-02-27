@@ -258,8 +258,6 @@ export class PokemonService {
             '-createdAt -updatedAt -__v -type._id -type.url -type.createdAt -type.updatedAt -type.__v',
           );
 
-        console.log(pokemonDb);
-
         if (!pokemonDb) {
           throw new Error(`Pokemon with id ${id} not found`);
         }
@@ -369,8 +367,8 @@ export class PokemonService {
       }
 
       const updatedPokemon = await this.pokemonModel.findOneAndUpdate(
-        { _id: id },
-        { $set: { types: types.map((t) => t._id), ...sanitizedDto } },
+        { id },
+        { $set: { types: types.map((t) => t.id), ...sanitizedDto } },
         { new: true },
       );
 
@@ -393,7 +391,7 @@ export class PokemonService {
    */
   async remove(id: string): Promise<boolean> {
     try {
-      const removed = await this.pokemonModel.findOneAndDelete({ _id: id });
+      const removed = await this.pokemonModel.findOneAndDelete({ id });
 
       if (!removed) {
         throw new Error(`Pokemon with ID "${id}" not found.`);
