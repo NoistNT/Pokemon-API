@@ -7,17 +7,8 @@ export class AppService {
     return {
       info: 'Pokemon API',
       version: '1.0.0',
-      endpoints: {
-        pokemon: {
-          list: '/pokemon',
-          findOne: '/pokemon/:id',
-        },
-        type: {
-          list: '/type',
-          findOne: '/type/:id',
-        },
-        seeder: '/seeder',
-      },
+      pokemon: '/pokemon',
+      type: '/type',
     };
   }
 }
