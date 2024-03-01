@@ -12,7 +12,7 @@
 <p align="center">
   An awesome RESTful API powering Pokewiki, a comprehensive Pokémon knowledge base!
   <br />
-  <a href="https://pokewikiclient.vercel.app">View Demo</a>
+  <a href="https://pokeapi-7tx2.onrender.com/">View Demo</a>
   ·
   <a href="https://github.com/NoistNT/Pokemon-API/issues">Report Bug</a>
   ·
