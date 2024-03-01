@@ -1,62 +1,96 @@
 <a name="readme-top"></a>
 
-<!-- PROJECT LOGO -->
 <br />
 
 <div align="center">
-  <a href="https://pokewikiclient.vercel.app">
-    <img src="assets/logo.webp" alt="PokeWiki Logo" width="500" height="200">
-  </a>
+ <a href="https://pokewikiclient.vercel.app">
+  <img src="assets/logo.webp" alt="PokeWiki Logo" width="500" height="200">
+ </a>
 
 
-  <h1 align="center">Pokewiki</h1>
+ <h1 align="center">Pokewiki</h1>
 
-  <p align="center">
-    An awesome wiki about pokémon!
-    <br />
-    <a href="https://pokewikiclient.vercel.app">View Demo</a>
-    ·
-    <a href="https://github.com/NoistNT/Pokemon-API/issues">Report Bug</a>
-    ·
-    <a href="https://github.com/NoistNT/Pokemon-API/issues">Request Feature</a>
-  </p>
+ <p align="center">
+  An awesome RESTful API powering Pokewiki, a comprehensive Pokémon knowledge base!
+  <br />
+  <a href="https://pokewikiclient.vercel.app">View Demo</a>
+  ·
+  <a href="https://github.com/NoistNT/Pokemon-API/issues">Report Bug</a>
+  ·
+  <a href="https://github.com/NoistNT/Pokemon-API/issues">Request Feature</a>
+ </p>
 </div>
 
 
 
 
-<!-- ABOUT THE PROJECT -->
 ## About The Project
 <br/>
 
-Design and development of a Single Page Application (SPA) providing information about Pokémon in a Pokédex-style format. This includes Pokémon search by name, a controlled and validated form with error handling for Pokémon creation, combined filtering by types and origin (from database, user-created or original ones from the API), sorting by attack, defense, speed, and health points, as well as a detailed view of a specifically pokémon information. Implementation of lazy-loading is also incorporated. Additionally, it includes the necessary endpoints for data fetching.
+This **RESTful API** provides comprehensive access to Pokémon data, empowering developers to:
+
+**1. Fetch Pokémon:**
+
+* **List All:** Retrieve a comprehensive list of all available Pokémon.
+* **By Name:** Search for a specific Pokémon by providing its name.
+* **By ID:** Access data for a particular Pokémon using its unique identifier.
+
+**2. Manage Pokémon (CRUD Operations):**
+
+* **Create:** Add a new Pokémon to the database, adhering to the specified data format.
+* **Update:** Modify existing Pokémon data, providing the updated information.
+* **Remove:** Delete a Pokémon from the database by its ID.
+
+**Technical Specifications:**
+
+* **Framework:** NestJS
+* **Programming Language:** TypeScript
+* **Database:** MongoDB
+* **ORM:** Mongoose
+* **Data Validation:** Zod
+* **Endpoints:**
+
+| Method | URL | Description |
+|---|---|---|
+| GET | /pokemon | Retrieves a list of all Pokémon. |
+| GET | /pokemon/:id | Fetches a Pokémon by ID. |
+| GET | /pokemon/:name | Searches for a Pokémon by name. |
+| POST | /pokemon | Creates a new Pokémon. |
+| PUT | /pokemon/:id | Updates an existing Pokémon. |
+| DELETE | /pokemon/:id | Deletes a Pokémon by ID. |
+</br>
+
+**Data Validation:**
+
+This API employs Zod for robust data validation. Developers must adhere to the specified data format when creating, updating, or deleting Pokémon. Refer to the official API documentation for detailed information about the required format.
 
 ## Built With
 
-[![HTML5](https://img.shields.io/badge/HTML5-orange.svg?style=for-the-badge&logo=html5&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/HTML)
-[![CSS3](https://img.shields.io/badge/CSS3-blueviolet.svg?style=for-the-badge&logo=css3&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/CSS)
-[![JavaScript](https://img.shields.io/badge/JavaScript-yellow.svg?style=for-the-badge&logo=javascript&logoColor=white)](https://reactjs.org/)
-[![React](https://img.shields.io/badge/React-blue.svg?style=for-the-badge&logo=react&logoColor=white)](https://reactjs.org/)
-[![Redux](https://img.shields.io/badge/Redux-purple.svg?style=for-the-badge&logo=redux&logoColor=white)](https://redux.js.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-blue.svg?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-green.svg?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
-[![Express](https://img.shields.io/badge/Express-gray.svg?style=for-the-badge&logo=express&logoColor=white)](https://expressjs.com/)
-[![Sequelize](https://img.shields.io/badge/Sequelize-red.svg?style=for-the-badge&logo=sequelize&logoColor=white)](https://sequelize.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-blue.svg?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![NestJS](https://img.shields.io/badge/Nest.js-red.svg?style=for-the-badge&logo=nestjs&logoColor=white)](https://nestjs.com/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-green.svg?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![Mongoose](https://img.shields.io/badge/Mongoose-red.svg?style=for-the-badge&logo=mongoose&logoColor=white)](https://mongoosejs.com/)
+[![Zod](https://img.shields.io/badge/Zod-blue.svg?style=for-the-badge&logo=zod&logoColor=white)](https://zod.dev/)
 
 
 
-<!-- GETTING STARTED -->
 ## Getting Started
 
-Follow these straightforward steps to get your local copy up and running
+Follow these steps to set up your local development environment:
+
+### Prerequisites
+
+- Node.js and npm (or pnpm, yarn) installed on your system.
 
 ### Installation
 
-1. Clone the repo
-   ```sh
+1. Clone the repository:
+
+   ```bash
    git clone https://github.com/NoistNT/Pokemon-API.git
-   ```
-3. Install NPM packages
+
+2. Install Dependencies
    <br/>
    <br/>
    npm
@@ -71,7 +105,7 @@ Follow these straightforward steps to get your local copy up and running
    ```sh
    yarn install
    ```
-4. Run server
+3. Run server
    <br/>
    <br/>
    ```sh
@@ -107,7 +141,5 @@ Don't forget to give the project a star! Thanks again!
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
 [linkedin-url]: https://www.linkedin.com/in/ariel-piazzano
 [product-screenshot]: https://github.com/NoistNT/Pokemon-Client/assets/104594670/4f6ffde7-7939-4abe-9690-df6ce88b84e5
-[React.js]: https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB
-[React-url]: https://reactjs.org/
 [gmail-shield]: https://img.shields.io/badge/Gmail-D14836?style=for-the-badge&logo=gmail&logoColor=white
 [gmail-url]: mailto:arielgnr23@gmail.com
