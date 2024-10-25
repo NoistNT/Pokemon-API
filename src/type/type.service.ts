@@ -22,9 +22,7 @@ export class TypeService {
       return await this.typeModel.find().select('_id name url');
     } catch (error) {
       const typedError = error as Error;
-      throw new Error(
-        `Failed to retrieve Pokemon types list from the database: ${typedError.message}`,
-      );
+      throw new Error(`Failed to retrieve Pokemon types list from the database: ${typedError.message}`);
     }
   }
 
@@ -42,20 +40,12 @@ export class TypeService {
    */
   async findOne(id: number): Promise<Type> {
     try {
-      const type = await this.typeModel
-        .findOne({ _id: id })
-        .select('_id name url');
-
-      if (!type) {
-        throw new Error(`Type with id ${id} not found`);
-      }
-
+      const type = await this.typeModel.findOne({ _id: id }).select('_id name url');
+      if (!type) throw new Error(`Type with id ${id} not found`);
       return type;
     } catch (error) {
       const typedError = error as Error;
-      throw new Error(
-        `Failed to retrieve the Pokemon type from the database: ${typedError.message}`,
-      );
+      throw new Error(`Failed to retrieve the Pokemon type from the database: ${typedError.message}`);
     }
   }
 }
