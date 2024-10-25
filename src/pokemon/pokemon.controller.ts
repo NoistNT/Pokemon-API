@@ -1,17 +1,7 @@
-import { Pokemon } from '@/schemas/pokemon.schema';
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { CreatePokemonDto } from './dto/create-pokemon.dto';
 import { UpdatePokemonDto } from './dto/update-pokemon.dto';
 import { PokemonService } from './pokemon.service';
-import { PokemonEntity } from './entities/pokemon.entity';
 
 /**
  * @Controller('pokemon')
@@ -30,10 +20,10 @@ export class PokemonController {
    * - Returns the newly created Pokemon object.
    *
    * @param createPokemonDto - The data to create a new Pokemon with.
-   * @returns {Promise<Pokemon>} A promise resolving to the created Pokemon object.
+   * @returns A promise resolving to the http status code of the response.
    */
   @Post()
-  create(@Body() createPokemonDto: CreatePokemonDto): Promise<Pokemon> {
+  create(@Body() createPokemonDto: CreatePokemonDto) {
     return this.pokemonService.create(createPokemonDto);
   }
 
@@ -44,10 +34,10 @@ export class PokemonController {
    * - Delegates retrieval logic to the `pokemonService`.
    * - Returns an array of Pokemon objects.
    *
-   * @returns {Promise<Pokemon[]>} A promise resolving to a list of Pokemon objects.
+   * @returns A promise resolving to a list of Pokemon objects.
    */
   @Get()
-  findAll(): Promise<Pokemon[]> {
+  findAll() {
     return this.pokemonService.findAll();
   }
 
@@ -59,10 +49,10 @@ export class PokemonController {
    * - Returns the specified Pokemon object, or throws a `NotFoundException` if not found.
    *
    * @param id - The ID of the Pokemon to retrieve.
-   * @returns {Promise<Pokemon>} A promise resolving to the fetched Pokemon object.
+   * @returns A promise resolving to the fetched Pokemon object.
    */
   @Get(':id')
-  findById(@Param('id') id: string): Promise<Pokemon | PokemonEntity> {
+  findById(@Param('id') id: string) {
     return this.pokemonService.findById(id);
   }
 
@@ -75,12 +65,10 @@ export class PokemonController {
    * - Returns a promise resolving to an array of the fetched Pokemon object, or throws an error if not found.
    *
    * @param name - The name of the Pokemon to search for.
-   * @returns {Promise<Pokemon>} A promise resolving to an array of the fetched Pokemon object, or throws an error if not found.
+   * @returns A promise resolving to an array of the fetched Pokemon object, or throws an error if not found.
    */
   @Get('name/:name')
-  findByName(
-    @Param('name') name: string,
-  ): Promise<Pokemon[] | PokemonEntity[]> {
+  findByName(@Param('name') name: string) {
     return this.pokemonService.findByName(name);
   }
 
@@ -93,13 +81,10 @@ export class PokemonController {
    *
    * @param id - The ID of the Pokemon to update.
    * @param updatePokemonDto - The data for updating the Pokemon.
-   * @returns {Promise<Pokemon>} A promise resolving to the updated Pokemon doccment.
+   * @returns A promise resolving to the updated Pokemon doccment.
    */
   @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Body() updatePokemonDto: UpdatePokemonDto,
-  ): Promise<Pokemon> {
+  update(@Param('id') id: string, @Body() updatePokemonDto: UpdatePokemonDto) {
     return this.pokemonService.update(id, updatePokemonDto);
   }
 
@@ -111,10 +96,10 @@ export class PokemonController {
    * - Returns `true` if the Pokemon was successfully deleted, or throws a error if not found.
    *
    * @param id - The ID of the Pokemon to delete.
-   * @returns {Promise<boolean>} A promise resolving to `true` if deletion was successful.
+   * @returns A promise resolving to `true` if deletion was successful.
    */
   @Delete(':id')
-  remove(@Param('id') id: string): Promise<boolean> {
+  remove(@Param('id') id: string) {
     return this.pokemonService.remove(id);
   }
 }
