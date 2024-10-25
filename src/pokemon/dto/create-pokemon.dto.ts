@@ -9,5 +9,5 @@ export class CreatePokemonDto {
   height!: number;
   weight!: number;
   userCreated!: boolean;
-  type!: Array<string>;
+  type!: { name: string; url: string }[];
 }

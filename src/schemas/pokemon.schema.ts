@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose from 'mongoose';
+import { Types } from 'mongoose';
 import { z } from 'zod';
 import { createTypeSchema } from './type.schema';
 
@@ -42,7 +42,7 @@ export class Pokemon {
   @Prop({ required: true, default: true })
   userCreated!: boolean;
   @Prop({ required: true, ref: 'Type' })
-  type!: mongoose.Types.ObjectId;
+  type!: Types.ObjectId;
 }
 
 export const createPokemonSchema = z.object({
@@ -61,7 +61,7 @@ export const createPokemonSchema = z.object({
   height: z.number().int().min(1).max(999).default(1),
   weight: z.number().int().min(1).max(999).default(1),
   userCreated: z.boolean().default(true),
-  type: z.array(createTypeSchema).min(2),
+  type: z.array(createTypeSchema).min(1).max(2),
 });
 
 export interface PokemonResponse {
