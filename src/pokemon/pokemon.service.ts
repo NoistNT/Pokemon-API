@@ -1,12 +1,7 @@
 import { sanitizedString } from '@/lib/utils';
-import {
-  Pokemon,
-  PokemonApiResponse,
-  PokemonResponse,
-  createPokemonSchema,
-} from '@/schemas/pokemon.schema';
+import { Pokemon, PokemonApiResponse, PokemonResponse, createPokemonSchema } from '@/schemas/pokemon.schema';
 import { Type } from '@/schemas/type.schema';
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import axios, { AxiosResponse } from 'axios';
 import { Model } from 'mongoose';
@@ -19,7 +14,33 @@ export class PokemonService {
   constructor(
     @InjectModel('Pokemon') private readonly pokemonModel: Model<Pokemon>,
     @InjectModel('Type') private readonly typeModel: Model<Type>,
-  ) {}
+  ) {
+    this.validateEnvVariables();
+  }
+
+  private validateEnvVariables() {
+    const { BASE_URL, TOTAL_POKEMONS } = process.env;
+    if (!BASE_URL || !TOTAL_POKEMONS) {
+      throw this.createHttpException(
+        'Required environment variables are not defined',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  private createHttpException(message: string, status: HttpStatus): HttpException {
+    return new HttpException(message, status);
+  }
+
+  private handleError(error: unknown, defaultMessage: string) {
+    const status = error instanceof HttpException ? error.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
+    throw this.createHttpException(defaultMessage, status);
+  }
+
+  private isDataComplete(data: PokemonApiResponse): boolean {
+    const requiredFields = ['id', 'name', 'sprites', 'stats', 'types', 'height', 'weight'];
+    return requiredFields.every((field) => field in data);
+  }
 
   /**
    * Creates a new Pokemon in the database.
@@ -32,50 +53,40 @@ export class PokemonService {
    * - Throws informative errors for various failure scenarios.
    *
    * @param createPokemonDto - The data to create a new Pokemon with.
-   * @returns A promise resolving to the newly created Pokemon document, or throws an error if creation fails.
+   * @returns A promise resolving to the http status code of the response.
    */
-  async create(createPokemonDto: CreatePokemonDto): Promise<Pokemon> {
-    const { BASE_URL, TOTAL_POKEMONS } = process.env;
-
-    if (!BASE_URL || !TOTAL_POKEMONS) {
-      throw new Error('Required environment variables are not defined');
-    }
-
+  async create(createPokemonDto: CreatePokemonDto): Promise<HttpStatus | void> {
     const name = sanitizedString(createPokemonDto.name);
-
     try {
-      // Check name existence in both DB and external API
-      const [isInDB, { data }]: [boolean, AxiosResponse<PokemonResponse>] =
-        await Promise.all([
-          this.pokemonModel.findOne({ name }) as Promise<boolean>,
-          axios.get(`${BASE_URL}/pokemon?limit=${TOTAL_POKEMONS}`),
-        ]);
+      const [isInDB, { data }]: [boolean, AxiosResponse<PokemonResponse>] = await Promise.all([
+        this.pokemonModel.findOne({ name }) as Promise<boolean>,
+        axios.get(`${process.env.BASE_URL}/pokemon?limit=${process.env.TOTAL_POKEMONS}`),
+      ]);
 
-      const isInApi = data.results.some((pokemon) => pokemon.name === name);
-
-      if (isInDB || isInApi) {
-        throw new Error(`Name ${name} already exists`);
+      if (isInDB || data.results.some((pokemon) => pokemon.name === name)) {
+        throw this.createHttpException(`Name ${name} already exists`, HttpStatus.CONFLICT);
       }
 
-      // Ensure types exist in database
+      createPokemonDto.userCreated = true;
       createPokemonDto.type = await this.typeModel.find({
-        name: { $in: createPokemonDto.type.map(sanitizedString) },
+        name: {
+          $in: createPokemonDto.type.map(({ name }) => sanitizedString(name)),
+        },
       });
 
       const validatedData = createPokemonSchema.safeParse(createPokemonDto);
-
       if (!validatedData.success) {
-        throw new Error(
-          `Failed to validate data: ${validatedData.error.message}`,
+        throw this.createHttpException(
+          `Failed to validate Pokemon data: ${validatedData.error.message}`,
+          HttpStatus.BAD_REQUEST,
         );
       }
 
       const newPokemon = new this.pokemonModel(validatedData.data);
       await newPokemon.save();
-      return newPokemon;
+      return HttpStatus.CREATED;
     } catch (error) {
-      const typedError = error as Error;
-      throw new Error(`Failed to create Pokemon: ${typedError.message}`);
+      return this.handleError(error, 'Failed to create Pokemon');
     }
   }
 
@@ -87,24 +98,11 @@ export class PokemonService {
    * @throws {IncompleteDataError} If the API response lacks required data.
    * @throws {Error} If any other error occurs during retrieval.
    */
-  private async getPokemonFromApi(url: string): Promise<PokemonEntity> {
+  private async getPokemonFromApi(url: string): Promise<PokemonEntity | void> {
     try {
       const { data }: AxiosResponse<PokemonApiResponse> = await axios.get(url);
-
-      // Ensure required properties exist before accessing them
-      if (
-        !data.id ||
-        !data.name ||
-        !data.sprites ||
-        !data.sprites.other ||
-        !data.sprites.other.home ||
-        !data.sprites.other.home.front_default ||
-        !data.stats ||
-        !data.types ||
-        !data.height ||
-        !data.weight
-      ) {
-        throw new Error('Incomplete data received from API for Pokemon');
+      if (!this.isDataComplete(data)) {
+        throw this.createHttpException('Incomplete pokemon data received from API', HttpStatus.BAD_REQUEST);
       }
 
       const { id, name, sprites, types, stats, height, weight } = data;
@@ -112,10 +110,7 @@ export class PokemonService {
 
       // Extract base stats with explicit types
       const baseStats = stats.reduce(
-        (
-          acc: { [key: string]: number },
-          stat: { stat: { name: string }; base_stat: number },
-        ) => {
+        (acc: { [key: string]: number }, stat: { stat: { name: string }; base_stat: number }) => {
           // Filter out unwanted properties before adding
           if (['attack', 'defense', 'hp', 'speed'].includes(stat.stat.name)) {
             acc[stat.stat.name] = stat.base_stat;
@@ -124,10 +119,6 @@ export class PokemonService {
         },
         {} as { [key: string]: number },
       );
-
-      const type = types.map((t: { type: { name: string } }) => ({
-        name: t.type.name,
-      }));
 
       return {
         id: Number(id),
@@ -140,13 +131,10 @@ export class PokemonService {
         height,
         weight,
         userCreated: false,
-        type,
+        type: types.map((t: { type: { name: string } }) => ({ name: t.type.name })),
       };
     } catch (error) {
-      const typedError = error as Error;
-      throw new Error(
-        `Failed to retrieve Pokemon from API. ${typedError.message}`,
-      );
+      return this.handleError(error, 'Failed to retrieve Pokemon from API');
     }
   }
 
@@ -157,27 +145,14 @@ export class PokemonService {
    * @throws {Error} If required environment variables are missing.
    * @throws {ApiError} If API retrieval fails, potentially due to exceeding the rate limit.
    */
-  private async findAllFromApi(): Promise<Pokemon[]> {
-    const { BASE_URL } = process.env;
-
-    if (!BASE_URL) {
-      throw new Error('Required environment variables are not defined');
-    }
-
+  private async findAllFromApi(): Promise<Pokemon[] | void> {
     try {
-      const { data } = await axios.get(`${BASE_URL}/pokemon?limit=40`);
-
+      const { data } = await axios.get(`${process.env.BASE_URL}/pokemon?limit=40`);
       return await Promise.all(
-        data.results.map(
-          async (pokemon: { url: string }) =>
-            await this.getPokemonFromApi(pokemon.url),
-        ),
+        data.results.map(async (pokemon: { url: string }) => await this.getPokemonFromApi(pokemon.url)),
       );
     } catch (error) {
-      const typedError = error as Error;
-      throw new Error(
-        `Failed to retrieve Pokemon from API. ${typedError.message}`,
-      );
+      return this.handleError(error, 'Failed to retrieve Pokemon from API');
     }
   }
 
@@ -191,7 +166,7 @@ export class PokemonService {
    *
    * @returns {Promise<Pokemon[]>} A promise resolving to an array of Pokemon objects, or throws an error if retrieval fails.
    */
-  private async findAllFromDb(): Promise<Pokemon[]> {
+  private async findAllFromDb(): Promise<Pokemon[] | void> {
     try {
       return await this.pokemonModel
         .find()
@@ -199,10 +174,7 @@ export class PokemonService {
           '-createdAt -updatedAt -__v -type._id -type.id -type.url -type.createdAt -type.updatedAt -type.__v',
         );
     } catch (error) {
-      const typedError = error as Error;
-      throw new Error(
-        `Failed to retrieve all pokemon from DB: ${typedError.message}`,
-      );
+      return this.handleError(error, 'Failed to retrieve Pokemon from database');
     }
   }
 
@@ -218,15 +190,16 @@ export class PokemonService {
    * - Both successful results are concatenated into a single array and returned.
    * - Any error encountered during retrieval throws a generic error message.
    */
-  async findAll(): Promise<Pokemon[]> {
+  async findAll(): Promise<Pokemon[] | void> {
     try {
       const pokemonsFromDB = await this.findAllFromDb();
       const pokemonsFromAPI = await this.findAllFromApi();
 
-      return await Promise.all(pokemonsFromDB.concat(pokemonsFromAPI));
-    } catch (dbError) {
-      console.error('Database retrieval failed:', dbError);
-      throw new Error('Failed to retrieve Pokemon from both database and API');
+      if (pokemonsFromDB && pokemonsFromAPI) {
+        return await Promise.all([...pokemonsFromAPI, ...pokemonsFromDB]);
+      }
+    } catch (error) {
+      return this.handleError(error, 'Failed to retrieve Pokemons from both database and API');
     }
   }
 
@@ -241,43 +214,25 @@ export class PokemonService {
    * @param id - The ID of the Pokemon to search for.
    * @returns {Promise<Pokemon>} A promise resolving to the fetched Pokemon object, or throws an error if not found.
    */
-  async findById(id: string | number): Promise<Pokemon | PokemonEntity> {
-    const { BASE_URL } = process.env;
-
-    if (!BASE_URL) {
-      throw new Error('Required environment variables are not defined');
-    }
-
+  async findById(id: string | number): Promise<Pokemon | PokemonEntity | void> {
     try {
       // Check if the ID is longer than 10 characters meaning it is an internal ID from the database
       if (typeof id === 'string' && id.length > 10) {
         // Exclude internal fields and unnecessary type details
         const pokemonDb = await this.pokemonModel
           .findOne({ id })
-          .select(
-            '-createdAt -updatedAt -__v -type._id -type.url -type.createdAt -type.updatedAt -type.__v',
-          );
+          .select('-createdAt -updatedAt -__v -type._id -type.url -type.createdAt -type.updatedAt -type.__v');
 
-        if (!pokemonDb) {
-          throw new Error(`Pokemon with id ${id} not found`);
-        }
-
+        if (!pokemonDb) throw this.createHttpException(`Pokemon not found in database`, HttpStatus.NOT_FOUND);
         return pokemonDb;
       }
 
       // Fetch data from the API since the ID is less than 10 characters meaning it's a number
-      const pokemon = await this.getPokemonFromApi(`${BASE_URL}/pokemon/${id}`);
-
-      if (!pokemon) {
-        throw new Error(`Pokemon with id ${id} not found`);
-      }
-
+      const pokemon = await this.getPokemonFromApi(`${process.env.BASE_URL}/pokemon/${id}`);
+      if (!pokemon) throw this.createHttpException(`Pokemon not found in API`, HttpStatus.NOT_FOUND);
       return pokemon;
     } catch (error) {
-      const typedError = error as Error;
-      throw new Error(
-        `Failed to retrieve data from database: ${typedError.message}`,
-      );
+      return this.handleError(error, 'Pokemon not found in database or API');
     }
   }
 
@@ -292,35 +247,22 @@ export class PokemonService {
    * @param name - The name of the Pokemon to search for.
    * @returns {Promise<Pokemon>} A promise resolving to an array of the fetched Pokemon object, or throws an error if not found.
    */
-  async findByName(name: string): Promise<Pokemon[] | PokemonEntity[]> {
-    const { BASE_URL } = process.env;
-
-    if (!BASE_URL) {
-      throw new Error('Required environment variables are not defined');
-    }
-
+  async findByName(name: string): Promise<Pokemon[] | PokemonEntity[] | void> {
     const sanitizedName = sanitizedString(name);
-
     try {
       const pokemonDB = await this.pokemonModel.findOne({
         name: sanitizedName,
       });
-
       if (pokemonDB) return [pokemonDB];
 
-      const url = `${BASE_URL}/pokemon/${sanitizedName}`;
+      const url = `${process.env.BASE_URL}/pokemon/${sanitizedName}`;
       const pokemonApi = await this.getPokemonFromApi(url);
-
       if (!pokemonApi) {
-        throw new Error(`Pokemon with name '${sanitizedName}' not found`);
+        throw this.createHttpException('Pokemon not found in API', HttpStatus.NOT_FOUND);
       }
-
       return [pokemonApi];
     } catch (error) {
-      const typedError = error as Error;
-      throw new Error(
-        `Failed to retrieve data from database: ${typedError.message}`,
-      );
+      return this.handleError(error, 'Pokemon not found in database or API');
     }
   }
 
@@ -336,15 +278,12 @@ export class PokemonService {
    * @param updatePokemonDto - The data to update the Pokemon with.
    * @returns {Promise<Pokemon>} A promise resolving to the updated Pokemon document, or throws an error if the update fails.
    */
-  async update(
-    id: string,
-    updatePokemonDto: UpdatePokemonDto,
-  ): Promise<Pokemon> {
+  async update(id: string, updatePokemonDto: UpdatePokemonDto): Promise<Pokemon | void> {
     try {
       const sanitizedDto = {
         name: updatePokemonDto.name?.trim().toLowerCase(),
         image: updatePokemonDto.image?.trim(),
-        type: updatePokemonDto.type?.map(sanitizedString),
+        type: updatePokemonDto.type?.map(({ name }) => name),
       };
 
       const types = await this.typeModel.find({
@@ -354,7 +293,7 @@ export class PokemonService {
       const existingPokemon = await this.pokemonModel.findOne({ id });
 
       if (!existingPokemon) {
-        throw new Error(`Pokemon with id ${id} not found`);
+        throw this.createHttpException(`Pokemon to update not found`, HttpStatus.NOT_FOUND);
       }
 
       if (sanitizedDto.name !== existingPokemon.name) {
@@ -362,7 +301,7 @@ export class PokemonService {
           name: sanitizedDto.name,
         });
         if (pokemonWithName) {
-          throw new Error(`Name ${sanitizedDto.name} already exists`);
+          throw this.createHttpException(`Name ${sanitizedDto.name} already exists`, HttpStatus.CONFLICT);
         }
       }
 
@@ -371,11 +310,9 @@ export class PokemonService {
         { $set: { types: types.map((t) => t.id), ...sanitizedDto } },
         { new: true },
       );
-
       return updatedPokemon as Pokemon;
     } catch (error) {
-      const typedError = error as Error;
-      throw new Error(`Failed to update Pokemon: ${typedError.message}`);
+      return this.handleError(error, 'Failed to update Pokemon');
     }
   }
 
@@ -389,18 +326,13 @@ export class PokemonService {
    * @param id - The ID of the Pokemon to remove.
    * @returns {Promise<boolean>} A promise resolving to `true` if the Pokemon was removed, or throws an error if not found.
    */
-  async remove(id: string): Promise<boolean> {
+  async remove(id: string): Promise<boolean | void> {
     try {
       const removed = await this.pokemonModel.findOneAndDelete({ id });
-
-      if (!removed) {
-        throw new Error(`Pokemon with ID "${id}" not found.`);
-      }
-
+      if (!removed) throw this.createHttpException(`Pokemon to remove not found`, HttpStatus.NOT_FOUND);
       return true;
     } catch (error) {
-      const typedError = error as Error;
-      throw new Error(`Failed to remove Pokemon: ${typedError.message}`);
+      return this.handleError(error, 'Failed to remove Pokemon');
     }
   }
 }
