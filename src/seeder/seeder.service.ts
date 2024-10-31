@@ -1,5 +1,6 @@
+import { createHttpException, handleError, validateEnvVariables } from '@/lib/utils';
 import { Type, TypeApiResponse, createTypeSchema } from '@/schemas/type.schema';
-import { Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import axios, { AxiosResponse } from 'axios';
 import { Model } from 'mongoose';
@@ -7,7 +8,9 @@ import { SeedResponse } from './entities/seeder.entity';
 
 @Injectable()
 export class SeederService {
-  constructor(@InjectModel('Type') private readonly typeModel: Model<Type>) {}
+  constructor(@InjectModel('Type') private readonly typeModel: Model<Type>) {
+    validateEnvVariables();
+  }
 
   /**
    * Fetches type data from the provided URL, performs validation, and returns a Type object.
@@ -25,13 +28,15 @@ export class SeederService {
       const validatedData = createTypeSchema.safeParse({ name, url });
 
       if (!validatedData.success) {
-        throw new Error(`Failed to validate type data: ${validatedData.error.message}`);
+        throw createHttpException(
+          `Failed to validate type data: ${validatedData.error.message}`,
+          HttpStatus.BAD_REQUEST,
+        );
       }
 
       return new this.typeModel(validatedData.data);
     } catch (error) {
-      const typedError = error as Error;
-      throw new Error(`Failed to fetch type data: ${typedError.message}`);
+      return handleError(error, 'Failed to fetch type data');
     }
   }
 
@@ -42,14 +47,9 @@ export class SeederService {
    * @throws {Error} If fetching types data fails.
    */
   private async getTypesDataFromApi(): Promise<Type[]> {
-    const { BASE_URL } = process.env;
-    if (!BASE_URL) {
-      throw new Error('BASE_URL not defined in environment variables');
-    }
-
     try {
       // Specify expected API response structure
-      const { data }: AxiosResponse<TypeApiResponse> = await axios.get(`${BASE_URL}/type`);
+      const { data }: AxiosResponse<TypeApiResponse> = await axios.get(`${process.env.BASE_URL}/type`);
 
       // Ensure results array and extract type urls
       const typeUrls = data.results.map((type) => type.url);
@@ -57,8 +57,7 @@ export class SeederService {
       // Use Promise.all for concurrent fetching and validation
       return await Promise.all(typeUrls.map((url) => this.getType(url)));
     } catch (error) {
-      const typedError = error as Error;
-      throw new Error(`Failed to fetch types data: ${typedError.message}`);
+      return handleError(error, 'Failed to fetch types data');
     }
   }
 
@@ -81,7 +80,7 @@ export class SeederService {
       await session.commitTransaction();
 
       return {
-        status: 201,
+        status: HttpStatus.CREATED,
         message: 'Pokemon types seeded successfully',
       };
     } catch (error) {

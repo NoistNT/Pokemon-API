@@ -1,5 +1,6 @@
+import { createHttpException, handleError } from '@/lib/utils';
 import { Type } from '@/schemas/type.schema';
-import { Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
@@ -21,8 +22,7 @@ export class TypeService {
     try {
       return await this.typeModel.find().select('_id name url');
     } catch (error) {
-      const typedError = error as Error;
-      throw new Error(`Failed to retrieve Pokemon types list from the database: ${typedError.message}`);
+      return handleError(error, 'Failed to retrieve Pokemon types list from the database');
     }
   }
 
@@ -41,11 +41,10 @@ export class TypeService {
   async findOne(id: number): Promise<Type> {
     try {
       const type = await this.typeModel.findOne({ _id: id }).select('_id name url');
-      if (!type) throw new Error(`Type with id ${id} not found`);
+      if (!type) throw createHttpException(`Type not found`, HttpStatus.NOT_FOUND);
       return type;
     } catch (error) {
-      const typedError = error as Error;
-      throw new Error(`Failed to retrieve the Pokemon type from the database: ${typedError.message}`);
+      return handleError(error, 'Failed to retrieve type from the database');
     }
   }
 }
