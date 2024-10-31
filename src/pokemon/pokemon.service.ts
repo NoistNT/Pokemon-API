@@ -1,10 +1,11 @@
-import { sanitizedString } from '@/lib/utils';
+import { createHttpException, sanitizedString } from '@/lib/utils';
 import { Pokemon, PokemonApiResponse, PokemonResponse, createPokemonSchema } from '@/schemas/pokemon.schema';
 import { Type } from '@/schemas/type.schema';
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import axios, { AxiosResponse } from 'axios';
 import { Model } from 'mongoose';
+import { handleError, validateEnvVariables } from '../lib/utils';
 import { CreatePokemonDto } from './dto/create-pokemon.dto';
 import { UpdatePokemonDto } from './dto/update-pokemon.dto';
 import { PokemonEntity } from './entities/pokemon.entity';
@@ -15,26 +16,7 @@ export class PokemonService {
     @InjectModel('Pokemon') private readonly pokemonModel: Model<Pokemon>,
     @InjectModel('Type') private readonly typeModel: Model<Type>,
   ) {
-    this.validateEnvVariables();
-  }
-
-  private validateEnvVariables() {
-    const { BASE_URL, TOTAL_POKEMONS } = process.env;
-    if (!BASE_URL || !TOTAL_POKEMONS) {
-      throw this.createHttpException(
-        'Required environment variables are not defined',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  private createHttpException(message: string, status: HttpStatus): HttpException {
-    return new HttpException(message, status);
-  }
-
-  private handleError(error: unknown, defaultMessage: string) {
-    const status = error instanceof HttpException ? error.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
-    throw this.createHttpException(defaultMessage, status);
+    validateEnvVariables();
   }
 
   private isDataComplete(data: PokemonApiResponse): boolean {
@@ -64,7 +46,7 @@ export class PokemonService {
       ]);
 
       if (isInDB || data.results.some((pokemon) => pokemon.name === name)) {
-        throw this.createHttpException(`Name ${name} already exists`, HttpStatus.CONFLICT);
+        throw createHttpException(`Name ${name} already exists`, HttpStatus.CONFLICT);
       }
 
       createPokemonDto.userCreated = true;
@@ -76,7 +58,7 @@ export class PokemonService {
 
       const validatedData = createPokemonSchema.safeParse(createPokemonDto);
       if (!validatedData.success) {
-        throw this.createHttpException(
+        throw createHttpException(
           `Failed to validate Pokemon data: ${validatedData.error.message}`,
           HttpStatus.BAD_REQUEST,
         );
@@ -86,7 +68,7 @@ export class PokemonService {
       await newPokemon.save();
       return HttpStatus.CREATED;
     } catch (error) {
-      return this.handleError(error, 'Failed to create Pokemon');
+      return handleError(error, 'Failed to create Pokemon');
     }
   }
 
@@ -102,7 +84,7 @@ export class PokemonService {
     try {
       const { data }: AxiosResponse<PokemonApiResponse> = await axios.get(url);
       if (!this.isDataComplete(data)) {
-        throw this.createHttpException('Incomplete pokemon data received from API', HttpStatus.BAD_REQUEST);
+        throw createHttpException('Incomplete pokemon data received from API', HttpStatus.BAD_REQUEST);
       }
 
       const { id, name, sprites, types, stats, height, weight } = data;
@@ -134,7 +116,7 @@ export class PokemonService {
         type: types.map((t: { type: { name: string } }) => ({ name: t.type.name })),
       };
     } catch (error) {
-      return this.handleError(error, 'Failed to retrieve Pokemon from API');
+      return handleError(error, 'Failed to retrieve Pokemon from API');
     }
   }
 
@@ -152,7 +134,7 @@ export class PokemonService {
         data.results.map(async (pokemon: { url: string }) => await this.getPokemonFromApi(pokemon.url)),
       );
     } catch (error) {
-      return this.handleError(error, 'Failed to retrieve Pokemon from API');
+      return handleError(error, 'Failed to retrieve Pokemon from API');
     }
   }
 
@@ -174,7 +156,7 @@ export class PokemonService {
           '-createdAt -updatedAt -__v -type._id -type.id -type.url -type.createdAt -type.updatedAt -type.__v',
         );
     } catch (error) {
-      return this.handleError(error, 'Failed to retrieve Pokemon from database');
+      return handleError(error, 'Failed to retrieve Pokemon from database');
     }
   }
 
@@ -199,7 +181,7 @@ export class PokemonService {
         return await Promise.all([...pokemonsFromAPI, ...pokemonsFromDB]);
       }
     } catch (error) {
-      return this.handleError(error, 'Failed to retrieve Pokemons from both database and API');
+      return handleError(error, 'Failed to retrieve Pokemons from both database and API');
     }
   }
 
@@ -223,16 +205,16 @@ export class PokemonService {
           .findOne({ id })
           .select('-createdAt -updatedAt -__v -type._id -type.url -type.createdAt -type.updatedAt -type.__v');
 
-        if (!pokemonDb) throw this.createHttpException(`Pokemon not found in database`, HttpStatus.NOT_FOUND);
+        if (!pokemonDb) throw createHttpException(`Pokemon not found in database`, HttpStatus.NOT_FOUND);
         return pokemonDb;
       }
 
       // Fetch data from the API since the ID is less than 10 characters meaning it's a number
       const pokemon = await this.getPokemonFromApi(`${process.env.BASE_URL}/pokemon/${id}`);
-      if (!pokemon) throw this.createHttpException(`Pokemon not found in API`, HttpStatus.NOT_FOUND);
+      if (!pokemon) throw createHttpException(`Pokemon not found in API`, HttpStatus.NOT_FOUND);
       return pokemon;
     } catch (error) {
-      return this.handleError(error, 'Pokemon not found in database or API');
+      return handleError(error, 'Pokemon not found in database or API');
     }
   }
 
@@ -258,11 +240,11 @@ export class PokemonService {
       const url = `${process.env.BASE_URL}/pokemon/${sanitizedName}`;
       const pokemonApi = await this.getPokemonFromApi(url);
       if (!pokemonApi) {
-        throw this.createHttpException('Pokemon not found in API', HttpStatus.NOT_FOUND);
+        throw createHttpException('Pokemon not found in API', HttpStatus.NOT_FOUND);
       }
       return [pokemonApi];
     } catch (error) {
-      return this.handleError(error, 'Pokemon not found in database or API');
+      return handleError(error, 'Pokemon not found in database or API');
     }
   }
 
@@ -293,7 +275,7 @@ export class PokemonService {
       const existingPokemon = await this.pokemonModel.findOne({ id });
 
       if (!existingPokemon) {
-        throw this.createHttpException(`Pokemon to update not found`, HttpStatus.NOT_FOUND);
+        throw createHttpException(`Pokemon to update not found`, HttpStatus.NOT_FOUND);
       }
 
       if (sanitizedDto.name !== existingPokemon.name) {
@@ -301,7 +283,7 @@ export class PokemonService {
           name: sanitizedDto.name,
         });
         if (pokemonWithName) {
-          throw this.createHttpException(`Name ${sanitizedDto.name} already exists`, HttpStatus.CONFLICT);
+          throw createHttpException(`Name ${sanitizedDto.name} already exists`, HttpStatus.CONFLICT);
         }
       }
 
@@ -312,7 +294,7 @@ export class PokemonService {
       );
       return updatedPokemon as Pokemon;
     } catch (error) {
-      return this.handleError(error, 'Failed to update Pokemon');
+      return handleError(error, 'Failed to update Pokemon');
     }
   }
 
@@ -329,10 +311,10 @@ export class PokemonService {
   async remove(id: string): Promise<boolean | void> {
     try {
       const removed = await this.pokemonModel.findOneAndDelete({ id });
-      if (!removed) throw this.createHttpException(`Pokemon to remove not found`, HttpStatus.NOT_FOUND);
+      if (!removed) throw createHttpException(`Pokemon to remove not found`, HttpStatus.NOT_FOUND);
       return true;
     } catch (error) {
-      return this.handleError(error, 'Failed to remove Pokemon');
+      return handleError(error, 'Failed to remove Pokemon');
     }
   }
 }
