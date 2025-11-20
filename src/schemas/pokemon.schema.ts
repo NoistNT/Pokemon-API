@@ -50,6 +50,7 @@ export const createPokemonSchema = z.object({
   name: z.string().min(2).max(30).trim().toLowerCase(),
   image: z
     .string()
+    .url()
     .trim()
     .default(
       'https://res.cloudinary.com/dsg5ofk4e/image/upload/v1709047835/pokewiki/60f684ec58ea6ded58112eac2324bfa8.webp',
