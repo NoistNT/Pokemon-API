@@ -1,7 +1,7 @@
-import { createHttpException, sanitizedString } from '@/lib/utils';
+import { createHttpException, sanitizedString, isValidUrlForApi } from '@/lib/utils';
 import { Pokemon, PokemonApiResponse, PokemonResponse, createPokemonSchema } from '@/schemas/pokemon.schema';
 import { Type } from '@/schemas/type.schema';
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { ForbiddenException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import axios, { AxiosResponse } from 'axios';
 import { Model } from 'mongoose';
@@ -81,6 +81,8 @@ export class PokemonService {
    * @throws {Error} If any other error occurs during retrieval.
    */
   private async getPokemonFromApi(url: string): Promise<PokemonEntity | void> {
+    if (!isValidUrlForApi(url)) throw new ForbiddenException('Attempted to access an invalid external URL.');
+
     try {
       const { data }: AxiosResponse<PokemonApiResponse> = await axios.get(url);
       if (!this.isDataComplete(data)) {
@@ -210,7 +212,12 @@ export class PokemonService {
       }
 
       // Fetch data from the API since the ID is less than 10 characters meaning it's a number
-      const pokemon = await this.getPokemonFromApi(`${process.env.BASE_URL}/pokemon/${id}`);
+      // Validate id to ensure it's a safe numerical identifier
+      const numericId = Number(id);
+      if (isNaN(numericId) || !Number.isInteger(numericId) || numericId <= 0) {
+        throw createHttpException('Invalid Pokemon ID provided', HttpStatus.BAD_REQUEST);
+      }
+      const pokemon = await this.getPokemonFromApi(`${process.env.BASE_URL}/pokemon/${numericId}`);
       if (!pokemon) throw createHttpException(`Pokemon not found in API`, HttpStatus.NOT_FOUND);
       return pokemon;
     } catch (error) {
@@ -232,16 +239,13 @@ export class PokemonService {
   async findByName(name: string): Promise<Pokemon[] | PokemonEntity[] | void> {
     const sanitizedName = sanitizedString(name);
     try {
-      const pokemonDB = await this.pokemonModel.findOne({
-        name: sanitizedName,
-      });
+      const pokemonDB = await this.pokemonModel.findOne({ name: sanitizedName });
       if (pokemonDB) return [pokemonDB];
 
-      const url = `${process.env.BASE_URL}/pokemon/${sanitizedName}`;
+      const url = `${process.env.BASE_URL}/pokemon/${encodeURIComponent(sanitizedName)}`;
       const pokemonApi = await this.getPokemonFromApi(url);
-      if (!pokemonApi) {
-        throw createHttpException('Pokemon not found in API', HttpStatus.NOT_FOUND);
-      }
+      if (!pokemonApi) throw createHttpException('Pokemon not found in API', HttpStatus.NOT_FOUND);
+
       return [pokemonApi];
     } catch (error) {
       return handleError(error, 'Pokemon not found in database or API');
@@ -268,20 +272,13 @@ export class PokemonService {
         type: updatePokemonDto.type?.map(({ name }) => name),
       };
 
-      const types = await this.typeModel.find({
-        name: { $in: sanitizedDto.type },
-      });
+      const types = await this.typeModel.find({ name: { $in: sanitizedDto.type } });
 
       const existingPokemon = await this.pokemonModel.findOne({ id });
-
-      if (!existingPokemon) {
-        throw createHttpException(`Pokemon to update not found`, HttpStatus.NOT_FOUND);
-      }
+      if (!existingPokemon) throw createHttpException(`Pokemon to update not found`, HttpStatus.NOT_FOUND);
 
       if (sanitizedDto.name !== existingPokemon.name) {
-        const pokemonWithName = await this.pokemonModel.findOne({
-          name: sanitizedDto.name,
-        });
+        const pokemonWithName = await this.pokemonModel.findOne({ name: sanitizedDto.name });
         if (pokemonWithName) {
           throw createHttpException(`Name ${sanitizedDto.name} already exists`, HttpStatus.CONFLICT);
         }
