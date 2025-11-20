@@ -15,7 +15,7 @@ const compat = new FlatCompat({
 });
 
 export default [
-  ...compat.extends('plugin:@typescript-eslint/recommended', 'plugin:prettier/recommended'),
+  ...compat.extends('plugin:@typescript-eslint/recommended'),
   {
     plugins: {
       '@typescript-eslint': typescriptEslintEslintPlugin,
@@ -27,12 +27,12 @@ export default [
       },
 
       parser: tsParser,
-      ecmaVersion: 5,
+      ecmaVersion: 'latest',
       sourceType: 'module',
 
       parserOptions: {
         project: 'tsconfig.json',
-        tsconfigRootDir: 'C:\\Development\\Projects\\Pokemon-API',
+        tsconfigRootDir: __dirname,
       },
     },
 

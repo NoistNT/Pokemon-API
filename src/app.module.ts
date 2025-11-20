@@ -12,9 +12,7 @@ import { TypeModule } from './type/type.module';
     ConfigModule.forRoot(),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        uri: configService.get('MONGODB_URI'),
-      }),
+      useFactory: async (configService: ConfigService) => ({ uri: configService.get('MONGODB_URI') }),
       inject: [ConfigService],
     }),
     PokemonModule,
