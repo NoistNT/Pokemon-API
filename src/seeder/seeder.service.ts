@@ -1,6 +1,6 @@
-import { createHttpException, handleError, validateEnvVariables } from '@/lib/utils';
+import { createHttpException, handleError, validateEnvVariables, isValidUrlForApi } from '@/lib/utils';
 import { Type, TypeApiResponse, createTypeSchema } from '@/schemas/type.schema';
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { ForbiddenException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import axios, { AxiosResponse } from 'axios';
 import { Model } from 'mongoose';
@@ -20,6 +20,8 @@ export class SeederService {
    * @throws {Error} If fetching the type data fails or if the fetched data fails validation.
    */
   private async getType(url: string): Promise<Type> {
+    if (!isValidUrlForApi(url)) throw new ForbiddenException('Attempted to access an invalid external URL.');
+
     try {
       const { data }: AxiosResponse<Type> = await axios.get(url);
       const { name } = data;
